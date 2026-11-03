@@ -26,9 +26,9 @@
 
 1. **엑셀에서 저장한 CSV:** UTF-8 BOM이 붙거나 CP949로 저장된 파일. BOM은 무시하고, UTF-8이 아니면 깨진 글자로 저장하지 않고 "UTF-8로 저장해 주세요" 오류를 낸다. 테스트는 Task 5.
 2. **엑셀의 CRLF 줄바꿈:** 코드 칸 안의 `\r\n`은 `\n`으로 바꿔서 저장한다. 들여쓰기는 그대로 둔다. 테스트는 Task 5.
-3. **시험 제출 이상 상황:** 이미 제출한 응시를 다시 제출하면 409, 남의 응시를 제출하면 403, 그 회차에 없는 문제 ID가 섞이면 400. 어떤 경우에도 풀이 기록이 중복 저장되지 않는다. 테스트는 Task 10.
+3. **시험 제출 이상 상황:** 이미 제출한 응시를 다시 제출하면 409, 남의 응시를 제출하면 403, 그 회차에 없는 문제 ID가 섞이면 400. 어떤 경우에도 풀이 기록이 중복 저장되지 않는다. 테스트는 Task 13.
 4. **문제가 달린 과목 삭제:** 운영자가 자격증을 수정하면서 문제가 있는 과목을 빼려고 하면 409를 내고 아무것도 바꾸지 않는다. 테스트는 Task 4.
-5. **잘못되거나 만료된 JWT:** 서버는 500이 아니라 401 JSON을 준다. 화면은 로그인 화면으로 보낸다. 서버 테스트는 Task 3, 화면 확인은 Task 13.
+5. **잘못되거나 만료된 JWT:** 서버는 500이 아니라 401 JSON을 준다. 화면은 로그인 화면으로 보낸다. 서버 테스트는 Task 3, 화면 확인은 Task 12.
 
 ---
 
@@ -222,7 +222,7 @@ client/   (create-expo-app 최신 템플릿으로 새로 생성)
 **Interfaces:**
 - `GET /api/certificates` → `[{id, name, description}]`
 - `GET /api/certificates/{id}` → `{id, name, description, timeLimitMinutes, failScore, passAverage, subjects: [{id, number, name}], schedules: [올해 일정만, examDate 순], exams: [{id, year, round, questionCount}] (최신순)}`
-- `GET /api/exams/{examId}/questions` → `[QuestionView]`, `record QuestionView(Long id, int number, int subjectNumber, String subjectName, String content, List<String> choices, boolean bookmarked)`. **정답과 해설은 포함하지 않는다.** Task 10과 11도 같은 `QuestionView`를 쓴다.
+- `GET /api/exams/{examId}/questions` → `[QuestionView]`, `record QuestionView(Long id, int number, int subjectNumber, String subjectName, String content, List<String> choices, boolean bookmarked)`. **정답과 해설은 포함하지 않는다.** Task 13과 11도 같은 `QuestionView`를 쓴다.
 
 - [ ] **Step 1:** 테스트 작성:
   - `detail_includesOnlyCurrentYearSchedules`
@@ -240,7 +240,7 @@ client/   (create-expo-app 최신 템플릿으로 새로 생성)
 
 **Interfaces:**
 - `POST /api/questions/{id}/solve` `{selectedNo}` (1~4) → `{correct, answerNo, explanation}`. `SolveRecord(mode=STUDY)`를 저장한다.
-- `SolveService.record(Long memberId, Question q, int selectedNo, SolveMode mode) → SolveRecord`: Task 10이 재사용한다.
+- `SolveService.record(Long memberId, Question q, int selectedNo, SolveMode mode) → SolveRecord`: Task 13이 재사용한다.
 
 - [ ] **Step 1:** 테스트 작성: `solve_correct_returnsTrueAndSavesRecord`, `solve_wrong_returnsAnswerAndExplanation`, `solve_selectedNoOutOfRange_returns400`
 - [ ] **Step 2:** FAIL 확인 → **Step 3:** 구현 → **Step 4:** PASS 확인
@@ -263,9 +263,7 @@ client/   (create-expo-app 최신 템플릿으로 새로 생성)
 - [ ] **Step 3:** 수동 확인 (서버 실행 상태): 가입 → 로그인 → 빈 탭 화면 진입 → 새로고침해도 로그인이 유지됨 → 틀린 비밀번호는 오류 메시지.
 - [ ] **Step 4:** Commit `refactor: recreate client on latest Expo with auth screens`
 
-### Task 10은 우선순위 2 (아래). 우선순위 1의 화면은 Task 11~13.
-
-### Task 11: 화면: 자격증 목록·상세, 회차·모드 선택
+### Task 10: 화면: 자격증 목록·상세, 회차·모드 선택
 
 **Files:**
 - Create: `client/app/(tabs)/_layout.tsx` (탭: 홈, 자격증, 내 학습), `client/app/(tabs)/certificates.tsx`, `client/app/certificates/[id].tsx`
@@ -278,7 +276,7 @@ client/   (create-expo-app 최신 템플릿으로 새로 생성)
 - [ ] **Step 2:** 수동 확인: 샘플 자격증 2개 → 상세에 설명·일정·회차 → 모드 선택 이동
 - [ ] **Step 3:** Commit `feat: add certificate list and detail screens`
 
-### Task 12: 화면: 공부 모드와 코드 블록
+### Task 11: 화면: 공부 모드와 코드 블록
 
 **Files:**
 - Create: `client/components/RichText.tsx`, `client/components/QuestionCard.tsx`, `client/app/exams/[examId]/study.tsx`
@@ -292,7 +290,7 @@ client/   (create-expo-app 최신 템플릿으로 새로 생성)
 - [ ] **Step 2:** 수동 확인: 샘플의 코드 문제에서 들여쓰기와 고정폭 글꼴이 유지됨, 마지막 문제 다음은 회차 상세로 돌아감
 - [ ] **Step 3:** Commit `feat: add study mode screen with code block rendering`
 
-### Task 13: 화면: 운영자 (자격증 편집, 회차 업로드)
+### Task 12: 화면: 운영자 (자격증 편집, 회차 업로드)
 
 **Files:**
 - Create: `client/app/admin/index.tsx`, `client/app/admin/certificates/[id].tsx` (`id = new`이면 생성), `client/app/admin/upload.tsx`
@@ -308,7 +306,7 @@ client/   (create-expo-app 최신 템플릿으로 새로 생성)
 
 ## 우선순위 2: 시험 모드
 
-### Task 10: 시험 응시·제출·채점 API
+### Task 13: 시험 응시·제출·채점 API
 
 **Files:**
 - Create: `exam/ScoreCalculator.java`, `attempt/AttemptController.java`, `attempt/AttemptService.java`, 응답 record
@@ -346,7 +344,7 @@ client/   (create-expo-app 최신 템플릿으로 새로 생성)
 - Create: `client/app/exams/[examId]/exam.tsx`, `client/app/attempts/[attemptId].tsx`
 
 **Interfaces:**
-- Consumes: Task 10 API, `QuestionCard` (Task 12)
+- Consumes: Task 13 API, `QuestionCard` (Task 11)
 - 타이머는 `startedAt + timeLimitMinutes`까지 남은 시간을 1초마다 다시 계산한다 (탭이 백그라운드에서 멈춰도 맞도록). 0이 되면 자동 제출한다. 문제 번호 목록으로 이동할 수 있다. 제출 전에 "안 푼 문제 N개" 확인을 띄운다.
 - 결과 화면: 과목별 점수와 과락 표시, 평균, 합격/불합격, 문제별 정답과 해설
 
