@@ -10,7 +10,11 @@ import org.springframework.data.repository.query.Param;
 
 public interface BookmarkRepository extends JpaRepository<Bookmark, Long> {
 
-    boolean existsByMemberIdAndQuestionId(Long memberId, Long questionId);
+    // 이미 있으면 아무것도 하지 않는다: 동시에 두 번 눌러도 UNIQUE 위반(500) 없이 멱등
+    @Modifying
+    @Query(value = "INSERT INTO bookmark (member_id, question_id) VALUES (:memberId, :questionId) ON CONFLICT DO NOTHING",
+            nativeQuery = true)
+    int insertIfAbsent(@Param("memberId") Long memberId, @Param("questionId") Long questionId);
 
     @Modifying
     @Query("DELETE FROM Bookmark b WHERE b.member.id = :memberId AND b.question.id = :questionId")
