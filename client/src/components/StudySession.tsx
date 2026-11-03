@@ -24,11 +24,13 @@ export function StudySession({
   subtitle,
   questions: initial,
   doneHref = '/',
+  onDone,
 }: {
   title: string;
   subtitle?: string;
   questions: QuestionView[];
   doneHref?: string;
+  onDone?: () => void; // 있으면 '돌아가기'가 화면 이동 대신 이것을 부른다 (오답노트 목록으로 복귀 등)
 }) {
   const wide = useIsWide();
   const [questions, setQuestions] = useState(initial);
@@ -98,7 +100,7 @@ export function StudySession({
           <Muted>틀린 문제는 '내 학습 › 오답노트'에 모여 있어요</Muted>
           <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
             <Button title="처음부터 다시 보기" variant="secondary" onPress={() => { setFinished(false); setIndex(0); }} />
-            <Button title="돌아가기" onPress={() => (router.canGoBack() ? router.back() : router.replace(doneHref as any))} />
+            <Button title="돌아가기" onPress={() => (onDone ? onDone() : router.canGoBack() ? router.back() : router.replace(doneHref as any))} />
           </View>
         </Card>
       </Screen>
