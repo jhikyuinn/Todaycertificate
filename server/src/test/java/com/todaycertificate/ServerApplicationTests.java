@@ -20,18 +20,7 @@ class ServerApplicationTests {
     }
 
     @Test
-    void sampleData_isLoaded() {
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM question", Integer.class)).isEqualTo(14);
-    }
-
-    @Test
-    void codeQuestion_keepsNewlinesAndIndentation() {
-        String content = jdbc.queryForObject(
-                "SELECT content FROM question WHERE content LIKE '%GROUP BY%'", String.class);
-        assertThat(content).contains("```\nSELECT DEPT_NO, COUNT(*)\nFROM EMP\nGROUP BY DEPT_NO;\n```");
-
-        String java = jdbc.queryForObject(
-                "SELECT content FROM question WHERE content LIKE '%continue%'", String.class);
-        assertThat(java).contains("\n    if (i % 2 == 0) continue;\n");
+    void sampleData_isNotLoadedInTests() {
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM question", Integer.class)).isZero();
     }
 }

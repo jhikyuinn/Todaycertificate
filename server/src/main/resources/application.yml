@@ -11,7 +11,7 @@ spring:
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: validate # 테이블은 schema.sql이 만들고, JPA는 엔티티와 맞는지만 검사
-  sql:
-    init:
-      mode: always
+      ddl-auto: validate # 테이블은 Flyway가 만들고, JPA는 엔티티와 맞는지만 검사
+  flyway:
+    # db/sample은 샘플 데이터. 테스트에서는 src/test/resources/config/application.yml이 뺀다.
+    locations: classpath:db/migration,classpath:db/sample

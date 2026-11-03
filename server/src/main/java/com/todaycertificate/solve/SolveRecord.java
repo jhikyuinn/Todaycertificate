@@ -1,5 +1,6 @@
 package com.todaycertificate.solve;
 
+import com.todaycertificate.attempt.ExamAttempt;
 import com.todaycertificate.exam.Question;
 import com.todaycertificate.member.Member;
 import jakarta.persistence.Entity;
@@ -26,6 +27,9 @@ public class SolveRecord {
     @ManyToOne(fetch = FetchType.LAZY)
     private Question question;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    private ExamAttempt attempt; // 시험 모드 기록만 채운다. 공부 모드는 null
+
     private int selectedNo;
     private boolean correct;
 
@@ -40,6 +44,7 @@ public class SolveRecord {
     public Long getId() { return id; }
     public Member getMember() { return member; }
     public Question getQuestion() { return question; }
+    public ExamAttempt getAttempt() { return attempt; }
     public int getSelectedNo() { return selectedNo; }
     public boolean isCorrect() { return correct; }
     public SolveMode getMode() { return mode; }
