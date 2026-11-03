@@ -1,0 +1,131 @@
+package com.todaycertificate.exam.upload;
+
+import java.io.IOException;
+import java.io.StringReader;
+import java.io.UncheckedIOException;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVParser;
+import org.apache.commons.csv.CSVRecord;
+
+/**
+ * 기출 CSV를 읽고 검증한다. DB나 Spring에 의존하지 않는 순수 코드라 단위 테스트가 쉽다.
+ * 형식: 과목번호,문제번호,문제,보기1,보기2,보기3,보기4,정답번호,해설
+ */
+public final class CsvQuestionParser {
+
+    static final List<String> HEADER =
+            List.of("과목번호", "문제번호", "문제", "보기1", "보기2", "보기3", "보기4", "정답번호", "해설");
+    private static final String FENCE = "```";
+
+    private CsvQuestionParser() {
+    }
+
+    public static CsvParseResult parse(byte[] file, Set<Integer> subjectNumbers) {
+        String text;
+        try {
+            text = decodeUtf8(file);
+        } catch (CharacterCodingException e) {
+            return CsvParseResult.fileError("파일을 UTF-8로 저장해 주세요. (엑셀: 다른 이름으로 저장 → CSV UTF-8)");
+        }
+        // 엑셀(Windows)의 \r\n 줄바꿈을 \n으로 통일한다. 칸 안의 코드 줄바꿈도 함께 바뀐다
+        text = text.replace("\r\n", "\n");
+
+        List<CSVRecord> records;
+        try (CSVParser parser = CSVFormat.DEFAULT.parse(new StringReader(text))) {
+            records = parser.getRecords();
+        } catch (IOException | UncheckedIOException | IllegalStateException e) {
+            return CsvParseResult.fileError("CSV 형식을 읽을 수 없습니다. 큰따옴표가 닫히지 않은 칸이 있는지 확인해 주세요.");
+        }
+
+        if (records.isEmpty() || !HEADER.equals(records.getFirst().stream().map(String::strip).toList())) {
+            return CsvParseResult.fileError("첫 줄(헤더)은 " + String.join(",", HEADER) + " 이어야 합니다.");
+        }
+
+        List<QuestionRow> rows = new ArrayList<>();
+        List<CsvError> errors = new ArrayList<>();
+        Set<Integer> seenNumbers = new HashSet<>();
+        for (int i = 1; i < records.size(); i++) {
+            int rowNumber = i; // 헤더를 뺀 1부터의 순번
+            List<String> rowErrors = new ArrayList<>();
+            QuestionRow row = toRow(records.get(i), subjectNumbers, seenNumbers, rowErrors);
+            rowErrors.forEach(message -> errors.add(new CsvError(rowNumber, message)));
+            if (rowErrors.isEmpty()) {
+                rows.add(row);
+            }
+        }
+        return new CsvParseResult(errors.isEmpty() ? rows : List.of(), errors);
+    }
+
+    // 잘못된 바이트를 대체 문자(�)로 바꾸지 않고 오류로 처리한다. 깨진 글자가 DB에 저장되는 것을 막는다
+    private static String decodeUtf8(byte[] file) throws CharacterCodingException {
+        int start = file.length >= 3 && (file[0] & 0xFF) == 0xEF && (file[1] & 0xFF) == 0xBB && (file[2] & 0xFF) == 0xBF
+                ? 3 : 0; // UTF-8 BOM (엑셀의 "CSV UTF-8" 저장 시 붙는다)
+        return StandardCharsets.UTF_8.newDecoder()
+                .onMalformedInput(CodingErrorAction.REPORT)
+                .onUnmappableCharacter(CodingErrorAction.REPORT)
+                .decode(ByteBuffer.wrap(file, start, file.length - start))
+                .toString();
+    }
+
+    private static QuestionRow toRow(CSVRecord record, Set<Integer> subjectNumbers, Set<Integer> seenNumbers,
+                                     List<String> errors) {
+        if (record.size() != HEADER.size()) {
+            errors.add("열이 " + HEADER.size() + "개여야 합니다. (현재 " + record.size() + "개)");
+            return null;
+        }
+        // 텍스트 칸은 strip하지 않는다: 코드 들여쓰기를 지키기 위해서다
+        Integer subjectNumber = parseInt(record.get(0), "과목번호", errors);
+        if (subjectNumber != null && !subjectNumbers.contains(subjectNumber)) {
+            errors.add("등록되지 않은 과목번호입니다: " + subjectNumber);
+        }
+        Integer number = parseInt(record.get(1), "문제번호", errors);
+        if (number != null && !seenNumbers.add(number)) {
+            errors.add("문제번호 " + number + "이(가) 중복됩니다.");
+        }
+        for (int col = 2; col <= 6; col++) {
+            if (record.get(col).isBlank()) {
+                errors.add("'" + HEADER.get(col) + "' 칸이 비어 있습니다.");
+            }
+        }
+        Integer answerNo = parseInt(record.get(7), "정답번호", errors);
+        if (answerNo != null && (answerNo < 1 || answerNo > 4)) {
+            errors.add("정답번호는 1~4여야 합니다. (현재 " + answerNo + ")");
+        }
+        for (int col : new int[] {2, 3, 4, 5, 6, 8}) {
+            if (countFences(record.get(col)) % 2 != 0) {
+                errors.add("'" + HEADER.get(col) + "' 칸의 ``` 가 닫히지 않았습니다.");
+            }
+        }
+        if (!errors.isEmpty()) {
+            return null;
+        }
+        String explanation = record.get(8).isBlank() ? null : record.get(8);
+        return new QuestionRow(subjectNumber, number, record.get(2),
+                List.of(record.get(3), record.get(4), record.get(5), record.get(6)), answerNo, explanation);
+    }
+
+    private static Integer parseInt(String value, String column, List<String> errors) {
+        try {
+            return Integer.valueOf(value.strip());
+        } catch (NumberFormatException e) {
+            errors.add("'" + column + "'는 숫자여야 합니다. (현재 \"" + value + "\")");
+            return null;
+        }
+    }
+
+    private static int countFences(String value) {
+        int count = 0;
+        for (int i = value.indexOf(FENCE); i >= 0; i = value.indexOf(FENCE, i + FENCE.length())) {
+            count++;
+        }
+        return count;
+    }
+}

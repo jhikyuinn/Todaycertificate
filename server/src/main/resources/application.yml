@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: server
+  config:
+    # 로컬: server/.env를 읽는다. 배포: 같은 이름의 환경변수가 우선한다.
+    import: optional:file:.env[.properties]
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate # 테이블은 Flyway가 만들고, JPA는 엔티티와 맞는지만 검사
+  flyway:
+    # db/sample은 샘플 데이터. 테스트에서는 src/test/resources/config/application.yml이 뺀다.
+    locations: classpath:db/migration,classpath:db/sample
+
+app:
+  jwt:
+    secret: ${JWT_SECRET} # 32바이트 이상. .env 또는 배포 환경변수에만 둔다
+    expiry-hours: 24
+  cors:
+    # 쉼표로 여러 개. 기본값은 Expo 웹 개발 서버
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:8081}

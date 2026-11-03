@@ -1,0 +1,9 @@
+# 테스트 클래스패스에만 있는 파일. Spring Boot는 classpath:/config/application.yml을
+# 기본 application.yml보다 나중에 읽어 같은 키를 덮어쓴다 → 테스트 DB에는 샘플 데이터를 넣지 않는다.
+spring:
+  flyway:
+    locations: classpath:db/migration
+
+app:
+  jwt:
+    secret: test-only-secret-not-used-anywhere-else-0123456789 # 테스트 전용 값
