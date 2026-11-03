@@ -27,6 +27,16 @@ public class ExamSchedule {
     protected ExamSchedule() {
     }
 
+    public ExamSchedule(Certificate certificate, int year, int round,
+                        LocalDate registrationStart, LocalDate registrationEnd, LocalDate examDate) {
+        this.certificate = certificate;
+        this.year = year;
+        this.round = round;
+        this.registrationStart = registrationStart;
+        this.registrationEnd = registrationEnd;
+        this.examDate = examDate;
+    }
+
     public Long getId() { return id; }
     public Certificate getCertificate() { return certificate; }
     public int getYear() { return year; }

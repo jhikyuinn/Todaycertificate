@@ -21,6 +21,19 @@ public class Certificate {
     protected Certificate() {
     }
 
+    public Certificate(String name, String description, int timeLimitMinutes, int failScore, int passAverage) {
+        update(name, description, timeLimitMinutes, failScore, passAverage);
+    }
+
+    // setter를 열지 않고, 함께 바뀌어야 하는 값을 메서드 하나로 바꾼다
+    public void update(String name, String description, int timeLimitMinutes, int failScore, int passAverage) {
+        this.name = name;
+        this.description = description;
+        this.timeLimitMinutes = timeLimitMinutes;
+        this.failScore = failScore;
+        this.passAverage = passAverage;
+    }
+
     public Long getId() { return id; }
     public String getName() { return name; }
     public String getDescription() { return description; }
