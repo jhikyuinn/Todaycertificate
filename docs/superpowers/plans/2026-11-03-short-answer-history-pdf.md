@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-11-03-short-answer-history-pdf-design.md` (9절 판단 3가지 사용자 승인)
 
-이 문서는 `2026-11-03-todaycertificate.md`의 Task 23 다음을 잇는다 (Task 24~32). 경로는 `server/src/main/java/com/todaycertificate/` 아래 기준.
+이 문서는 `2026-11-03-todaycertificate.md`의 Task 23 다음을 잇는다 (Task 34~42, GitHub 이슈 번호와 같다. #24~#33은 이미 다른 이슈·PR이 쓰고 있다). 경로는 `server/src/main/java/com/todaycertificate/` 아래 기준.
 
 ## Global Constraints
 
@@ -25,17 +25,17 @@
 
 ## Review Focus
 
-1. **주관식 답에 `|`가 들어간 경우:** 허용 답 구분자이므로 답 자체에 `|`를 쓸 수 없다. CSV 검증에서 빈 허용 답(`A||B`, 끝의 `|`)은 오류. 테스트는 Task 26.
-2. **문제 유형과 안 맞는 답:** 객관식에 `answerText`, 주관식에 `selectedNo`, 둘 다/둘 다 없음 → 400, 기록 저장 안 됨. 테스트는 Task 25.
-3. **객관식·주관식이 섞인 회차의 정답률:** `mostChosenWrongNo`는 객관식만. 주관식 기록(`selected_no` NULL)이 집계 쿼리를 깨지 않는다. 테스트는 Task 25.
-4. **PDF가 아닌 파일·암호 걸린 PDF·글자 없는 스캔 PDF:** 500이 아니라 400 `PDF_INVALID` + 이유. 테스트는 Task 31.
-5. **PDF 변환 실패 문제:** 보기 4개가 안 되거나 정답을 못 찾은 문제도 빠지지 않고 `warnings`와 함께 행으로 나온다. 테스트는 Task 30.
+1. **주관식 답에 `|`가 들어간 경우:** 허용 답 구분자이므로 답 자체에 `|`를 쓸 수 없다. CSV 검증에서 빈 허용 답(`A||B`, 끝의 `|`)은 오류. 테스트는 Task 36.
+2. **문제 유형과 안 맞는 답:** 객관식에 `answerText`, 주관식에 `selectedNo`, 둘 다/둘 다 없음 → 400, 기록 저장 안 됨. 테스트는 Task 35.
+3. **객관식·주관식이 섞인 회차의 정답률:** `mostChosenWrongNo`는 객관식만. 주관식 기록(`selected_no` NULL)이 집계 쿼리를 깨지 않는다. 테스트는 Task 35.
+4. **PDF가 아닌 파일·암호 걸린 PDF·글자 없는 스캔 PDF:** 500이 아니라 400 `PDF_INVALID` + 이유. 테스트는 Task 41.
+5. **PDF 변환 실패 문제:** 보기 4개가 안 되거나 정답을 못 찾은 문제도 빠지지 않고 `warnings`와 함께 행으로 나온다. 테스트는 Task 40.
 
 ---
 
 ## A. 주관식 (단답형)
 
-### Task 24: 스키마와 채점 규칙
+### Task 34: 스키마와 채점 규칙
 
 **Files:**
 - Create: `server/src/main/resources/db/migration/V2__short_answer.sql`, `exam/QuestionType.java`, `exam/ShortAnswerGrader.java`
@@ -63,7 +63,7 @@
 - [ ] **Step 4:** `./gradlew test` 전체 PASS (V2가 Testcontainers에서 적용되고 기존 테스트가 깨지지 않음)
 - [ ] **Step 5:** Commit `feat: add short-answer question type and grading rules (#27)`
 
-### Task 25: 풀이·시험 API의 주관식
+### Task 35: 풀이·시험 API의 주관식
 
 **Files:**
 - Modify: `solve/SolveController.java`, `solve/SolveService.java`, `attempt/AttemptController.java`, `attempt/AttemptService.java`, `exam/QuestionView.java`, `solve/QuestionStatsService.java`, `solve/SolveRecordRepository.java`(필요 시)
@@ -88,7 +88,7 @@
 - [ ] **Step 5:** `docs/API.md`의 풀이·시험 절에 `answerText`, `type` 반영 (코드에 있는 것만)
 - [ ] **Step 6:** Commit `feat: accept short answers in study and exam APIs (#27)`
 
-### Task 26: CSV `유형` 칸
+### Task 36: CSV `유형` 칸
 
 **Files:**
 - Modify: `exam/upload/CsvQuestionParser.java`, `exam/upload/QuestionRow.java`, `exam/upload/ExamUploadService.java`
@@ -106,7 +106,7 @@
 - [ ] **Step 5:** 운영자 업로드 화면의 "CSV 형식" 안내 카드에 `유형` 칸 한 줄 추가 (`client/src/app/(app)/admin/upload.tsx`)
 - [ ] **Step 6:** Commit `feat: support short-answer rows in exam CSV (#27)`
 
-### Task 27: 화면: 주관식 풀기 + 실기 예시 데이터
+### Task 37: 화면: 주관식 풀기 + 실기 예시 데이터
 
 **Files:**
 - Modify: `client/src/lib/types.ts`, `client/src/components/QuestionCard.tsx`, `client/src/components/StudySession.tsx`, `client/src/app/(app)/exams/[examId]/exam.tsx`, `client/src/app/(app)/attempts/[attemptId].tsx`, `server/src/main/resources/db/migration/R__sample_data.sql`
@@ -124,7 +124,7 @@
 
 ## B. 시험 점수 이력
 
-### Task 28: 점수 이력 API
+### Task 38: 점수 이력 API
 
 **Files:**
 - Modify: `attempt/AttemptController.java`, `attempt/AttemptService.java`, `attempt/ExamAttemptRepository.java`
@@ -140,7 +140,7 @@
 - [ ] **Step 2:** FAIL → **Step 3:** 구현 → **Step 4:** `./gradlew test` PASS
 - [ ] **Step 5:** `docs/API.md`에 추가 → Commit `feat: add exam score history API (#32)`
 
-### Task 29: 화면: 점수 이력
+### Task 39: 화면: 점수 이력
 
 **Files:**
 - Create: `client/src/app/(app)/history.tsx`, `client/src/components/ScoreChart.tsx`
@@ -157,7 +157,7 @@
 
 ## C. PDF 가져오기
 
-### Task 30: PDF 글자 → 문제 행 파서
+### Task 40: PDF 글자 → 문제 행 파서
 
 **Files:**
 - Modify: `server/build.gradle` (`org.apache.pdfbox:pdfbox` 3.x 최신)
@@ -183,7 +183,7 @@
 - [ ] **Step 3:** FAIL → **Step 4:** 구현 → **Step 5:** PASS
 - [ ] **Step 6:** Commit `feat: add PDF question parser for exam import`
 
-### Task 31: PDF 미리보기 API
+### Task 41: PDF 미리보기 API
 
 **Files:**
 - Create: `exam/pdf/AdminPdfPreviewController.java`
@@ -198,7 +198,7 @@
 - [ ] **Step 2:** FAIL → **Step 3:** 구현 → **Step 4:** `./gradlew test` PASS
 - [ ] **Step 5:** `docs/API.md`에 추가 → Commit `feat: add PDF preview API for exam import`
 
-### Task 32: 화면: PDF 미리보기 표 → 저장
+### Task 42: 화면: PDF 미리보기 표 → 저장
 
 **Files:**
 - Create: `client/src/lib/csv.ts`, `client/src/components/PreviewTable.tsx`
@@ -221,14 +221,14 @@
 
 | Task | 이슈 제목 | 라벨 | 예상 |
 |---|---|---|---|
-| 24 | 주관식: 스키마와 채점 규칙 | feature, P5, day-6 | 1.5h |
-| 25 | 주관식: 풀이·시험 API | feature, P5, day-6 | 2h |
-| 26 | 주관식: CSV 유형 칸 | feature, P5, day-6 | 1h |
-| 27 | 화면: 주관식 풀기 + 실기 예시 데이터 | feature, P5, day-6 | 2h |
-| 28 | 점수 이력 API | feature, P5, day-6 | 1h |
-| 29 | 화면: 점수 이력 | feature, P5, day-7 | 1.5h |
-| 30 | PDF 글자 → 문제 행 파서 | feature, P5, day-7 | 2h |
-| 31 | PDF 미리보기 API | feature, P5, day-7 | 1h |
-| 32 | 화면: PDF 미리보기 표 → 저장 | feature, P5, day-7 | 2h |
+| 34 | 주관식: 스키마와 채점 규칙 | feature, P5, day-6 | 1.5h |
+| 35 | 주관식: 풀이·시험 API | feature, P5, day-6 | 2h |
+| 36 | 주관식: CSV 유형 칸 | feature, P5, day-6 | 1h |
+| 37 | 화면: 주관식 풀기 + 실기 예시 데이터 | feature, P5, day-6 | 2h |
+| 38 | 점수 이력 API | feature, P5, day-6 | 1h |
+| 39 | 화면: 점수 이력 | feature, P5, day-7 | 1.5h |
+| 40 | PDF 글자 → 문제 행 파서 | feature, P5, day-7 | 2h |
+| 41 | PDF 미리보기 API | feature, P5, day-7 | 1h |
+| 42 | 화면: PDF 미리보기 표 → 저장 | feature, P5, day-7 | 2h |
 
 이후 기존 #17 #18 #19 (배포, README). 배포 전에 `R__sample_data.sql`에 직접 만든 문제만 있는지 확인한다.
