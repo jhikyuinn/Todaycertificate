@@ -44,7 +44,7 @@ server/src/main/java/com/todaycertificate/
   solve/         SolveRecord, SolveMode, Bookmark, (각 Repository), SolveController, BookmarkController, NoteController
   attempt/       ExamAttempt, ExamAttemptRepository, AttemptController, AttemptService
   study/         StudyController, DailyProblemService, SubjectReportService   (우선순위 5)
-server/src/main/resources/  application.yml, schema.sql → db/migration/V1__init.sql, data.sql → db/migration/V2__sample_data.sql
+server/src/main/resources/  application.yml, db/migration/V1__init.sql, db/sample/R__sample_data.sql (샘플, 테스트에서는 제외)
 server/src/test/java/com/todaycertificate/  TestcontainersConfig + 기능별 테스트
 docs/sample/sample-questions.csv   운영자 업로드 시연용 샘플 CSV
 
@@ -64,34 +64,45 @@ client/   (create-expo-app 최신 템플릿으로 새로 생성)
 
 ## 우선순위 1: 핵심 흐름
 
-### Task 1: 스키마 재설계, 엔티티, 테스트 환경
+### Task 1: 스키마 재설계, 엔티티, Flyway, 테스트 환경
 
 **Files:**
-- Modify: `server/src/main/resources/schema.sql`, `server/src/main/resources/data.sql`, `server/build.gradle`
+- Modify: `server/build.gradle` (`spring-boot-starter-flyway`, `flyway-database-postgresql`, 테스트용 Testcontainers)
+- Modify: `server/src/main/resources/application.yml` (`spring.sql.init` 제거, `spring.flyway.locations: classpath:db/migration,classpath:db/sample`)
+- Create: `server/src/main/resources/db/migration/V1__init.sql`, `server/src/main/resources/db/sample/R__sample_data.sql`
+- Delete: `server/src/main/resources/schema.sql`, `server/src/main/resources/data.sql`
 - Modify: `certificate/Certificate.java`, `exam/Question.java` (certificate 패키지에서 이동), `member/Member.java`
 - Create: `certificate/Subject.java`, `certificate/ExamSchedule.java`, `exam/Exam.java`, `member/Role.java`, `solve/SolveRecord.java`, `solve/SolveMode.java`, `solve/Bookmark.java`, `attempt/ExamAttempt.java`, 각 `*Repository.java`
-- Create: `server/src/test/java/com/todaycertificate/TestcontainersConfig.java`
+- Create: `server/src/test/java/com/todaycertificate/TestcontainersConfig.java`, `server/src/test/resources/config/application.yml` (테스트에서 샘플 제외: `spring.flyway.locations: classpath:db/migration`)
 - Test: `server/src/test/java/com/todaycertificate/ServerApplicationTests.java`
 
 **Interfaces:**
-- Produces (테이블 → 엔티티 필드):
+- Produces (테이블 → 엔티티 필드, `V1__init.sql`):
   - `certificate(id, name UNIQUE, description, time_limit_minutes, fail_score DEFAULT 40, pass_average DEFAULT 60)`
   - `subject(id, certificate_id FK, number, name, UNIQUE(certificate_id, number))`
   - `exam_schedule(id, certificate_id FK, year, round, registration_start, registration_end, exam_date)`
   - `exam(id, certificate_id FK, year, round, UNIQUE(certificate_id, year, round))`
   - `question(id, exam_id FK, subject_id FK, number, content, choice1, choice2, choice3, choice4, answer_no CHECK 1~4, explanation, UNIQUE(exam_id, number))`
   - `member(id, login_id UNIQUE, name, password, role DEFAULT 'USER', target_schedule_id FK NULL)`
-  - `solve_record(id, member_id FK, question_id FK, selected_no, correct, mode, solved_at)` + `(member_id, question_id, solved_at)` 인덱스
-  - `bookmark(id, member_id FK, question_id FK, UNIQUE(member_id, question_id))`
   - `exam_attempt(id, member_id FK, exam_id FK, started_at, submitted_at NULL, average_score NULL, passed NULL)`
+  - `solve_record(id, member_id FK, question_id FK, attempt_id FK NULL, selected_no, correct, mode, solved_at)` + `(member_id, question_id, solved_at)` 인덱스. `attempt_id`는 EXAM 기록만 채운다 (#13 결과 다시 보기).
+  - `bookmark(id, member_id FK, question_id FK, UNIQUE(member_id, question_id))`
   - `Role { USER, ADMIN }`, `SolveMode { STUDY, EXAM }` (`@Enumerated(STRING)`)
-- `data.sql`: 샘플 자격증 2개(정보처리기사, SQLD), 각 과목, 올해 일정 1건, 회차 1개, 과목당 3문제(그중 1문제는 ` ``` ` 코드 포함). 맨 위 주석으로 "AI가 만든 샘플" 표시.
+- `R__sample_data.sql`: 샘플 자격증 2개(정보처리기사, SQLD), 각 과목, 올해 일정 1건, 회차 1개, 과목당 3문제(그중 1문제는 ` ``` ` 코드 포함). 맨 위 주석으로 "AI가 만든 샘플" 표시.
+  - 로컬과 운영(#18 데모)에는 들어가고, 테스트 DB에는 들어가지 않는다. 테스트는 필요한 데이터를 직접 만든다.
+  - 반복(R__) 마이그레이션이라 파일을 고치면 다시 실행된다. 모든 INSERT에 `ON CONFLICT DO NOTHING`을 붙여 여러 번 실행돼도 안전하게 한다. 버전(V2__)으로 두지 않는 이유: 나중에 스키마 변경용 V2가 필요할 때 번호가 겹친다.
 
-- [ ] **Step 1:** `build.gradle`에 `spring-boot-testcontainers`, Testcontainers PostgreSQL 모듈(테스트 의존성)을 추가하고, `TestcontainersConfig`에 `@ServiceConnection PostgreSQLContainer("postgres:17")` 빈을 만든다. `ServerApplicationTests`가 이 설정을 `@Import`한다.
-- [ ] **Step 2:** 위 스키마로 `schema.sql`과 `data.sql`을 다시 쓰고, 엔티티를 테이블에 맞춘다. 연관관계는 모두 `@ManyToOne(fetch = LAZY)`.
-- [ ] **Step 3:** `./gradlew test` 실행. 기대: `contextLoads` PASS (`ddl-auto: validate` 통과).
-- [ ] **Step 4:** 로컬 DB를 새 스키마로 다시 만든다: `docker compose down -v && docker compose up -d`.
-- [ ] **Step 5:** Commit `refactor: redesign schema for exams, subjects and study records`
+- [ ] **Step 1:** `build.gradle`에 Flyway와 `spring-boot-testcontainers`, Testcontainers PostgreSQL 모듈(테스트 의존성)을 추가하고, `TestcontainersConfig`에 `@ServiceConnection PostgreSQLContainer("postgres:17")` 빈을 만든다. `ServerApplicationTests`가 이 설정을 `@Import`한다.
+- [ ] **Step 2:** 위 스키마로 `V1__init.sql`과 `R__sample_data.sql`을 쓰고 `schema.sql`, `data.sql`을 지운다. 엔티티를 테이블에 맞춘다. 연관관계는 모두 `@ManyToOne(fetch = LAZY)`.
+- [ ] **Step 3:** `./gradlew test` 실행. 기대: Flyway가 V1만 적용하고 `contextLoads` PASS (`ddl-auto: validate` 통과).
+- [ ] **Step 4:** 로컬 DB를 새로 만들고 실행한다: `docker compose down -v && docker compose up -d && ./gradlew bootRun`. 기대: 로그에 V1과 R__sample_data 적용, 샘플 자격증 2개 조회됨.
+- [ ] **Step 5:** Commit `refactor: redesign schema with Flyway migrations`
+
+**설계 보완 (2026-11-03 리뷰):**
+
+- [x] `solve_record.attempt_id` 추가 (#13 결과 다시 보기에 필요) → 위 스키마에 반영함
+- [x] Flyway를 #17이 아니라 이 태스크에서 도입하기로 결정함. 테스트가 처음부터 배포와 같은 마이그레이션으로 돌고, 배포하는 날(#17) 할 일이 줄어든다.
+- 배포 전까지는 `V1__init.sql`을 직접 고쳐도 된다 (로컬 DB는 `docker compose down -v`로 초기화). 첫 배포 이후에는 V1을 고치지 않고 `V2__...`를 추가한다.
 
 ### Task 2: 공통 오류 응답과 CORS
 
@@ -232,6 +243,11 @@ client/   (create-expo-app 최신 템플릿으로 새로 생성)
 - [ ] **Step 2:** FAIL 확인 → **Step 3:** 구현. 문제 목록은 과목을 fetch join으로 한 번에 가져와서 N+1을 피한다 → **Step 4:** PASS 확인
 - [ ] **Step 5:** Commit `feat: add certificate and question read API`
 
+**설계 보완 (2026-11-03 리뷰):**
+
+- [ ] **별표 여부 N+1:** `QuestionView.bookmarked`는 회원마다 다르다. 문제마다 별표 테이블을 조회하면 과목 fetch join과 별개로 N+1이 생긴다. 그 회차에서 내 별표 문제 ID를 쿼리 한 번으로 가져와 `Set<Long>`으로 매핑한다. `QuestionView`를 쓰는 #13, #20도 같은 방식을 쓴다.
+  - 테스트 `questions_bookmarkedFlag_onlyMine` (다른 회원의 별표는 `false`)
+
 ### Task 8: 공부 모드 풀이 API
 
 **Files:**
@@ -338,6 +354,15 @@ client/   (create-expo-app 최신 템플릿으로 새로 생성)
 - [ ] **Step 4:** FAIL 확인 → 구현 (`@Transactional`) → PASS 확인
 - [ ] **Step 5:** Commit `feat: add exam mode attempts with subject scoring`
 
+**설계 보완 (2026-11-03 리뷰):**
+
+- [ ] **동시 제출:** 자동 제출과 수동 제출이 동시에 오면 둘 다 `submitted_at IS NULL`을 읽고 통과해서 풀이 기록이 중복 저장될 수 있다 (Review Focus 3 위반). 순서대로 두 번 보내는 테스트로는 잡히지 않는다.
+  - 제출 처리 첫 단계에서 `UPDATE exam_attempt SET submitted_at = now() WHERE id = ? AND submitted_at IS NULL`을 실행하고, 영향받은 행이 0이면 409 `ALREADY_SUBMITTED`. DB가 한 요청만 통과시킨다. (대안: `@Version` 낙관적 락)
+  - 테스트 `submit_concurrently_savesRecordsOnce`: 두 스레드가 동시에 제출 → 하나는 200, 하나는 409, 풀이 기록은 한 번분만 저장
+- [ ] **결과 다시 보기:** `GET /api/attempts/{id}` → 제출 응답과 같은 형식. 남의 응시는 403, 제출 전이면 404. 결과 화면(#14)이 새로고침 후에도 결과를 보여주려면 필요하다.
+  - 문제별 선택을 복원하려면 `solve_record.attempt_id` (FK, NULL 허용, STUDY는 NULL)가 필요하다 → #1 스키마에 반영. 답하지 않은 문제는 기록이 없으므로 `selectedNo = null`로 복원한다.
+  - 테스트 `getResult_afterSubmit_matchesSubmitResponse`
+
 ### Task 14: 화면: 시험 모드와 결과
 
 **Files:**
@@ -351,6 +376,10 @@ client/   (create-expo-app 최신 템플릿으로 새로 생성)
 - [ ] **Step 1:** 구현
 - [ ] **Step 2:** 수동 확인: 제한시간을 1분으로 바꾼 샘플 자격증에서 자동 제출됨. 과락 과목은 빨간 표시. 새로고침하면 응시가 새로 시작됨 (이어 풀기는 범위 밖)
 - [ ] **Step 3:** Commit `feat: add exam mode screen with timer and result`
+
+**설계 보완 (2026-11-03 리뷰):**
+
+- [ ] 결과 화면은 제출 응답을 넘겨받지 않고 `GET /api/attempts/{id}` (#13)로 불러온다. 새로고침해도 결과가 유지되는지 수동 확인에 추가한다.
 
 ## 우선순위 3: 오답노트, 별표
 
@@ -369,6 +398,10 @@ client/   (create-expo-app 최신 템플릿으로 새로 생성)
 - [ ] **Step 2:** FAIL 확인 → 구현 → PASS 확인
 - [ ] **Step 3:** Commit `feat: add bookmark and wrong-answer note API`
 
+**설계 보완 (2026-11-03 리뷰):**
+
+- [ ] **"가장 최근 풀이" 쿼리 공유:** #22도 같은 쿼리가 필요하다. `SolveRecordRepository`에 하나만 두고 재사용한다. PostgreSQL `DISTINCT ON (question_id) ... ORDER BY question_id, solved_at DESC, id DESC` (같은 시각이면 id로 결정). 기존 인덱스 `(member_id, question_id, solved_at)`를 탄다.
+
 ### Task 16: 화면: 별표·오답노트
 
 **Files:**
@@ -381,18 +414,22 @@ client/   (create-expo-app 최신 템플릿으로 새로 생성)
 
 ## 우선순위 4: 배포와 문서
 
-### Task 17: Flyway 전환과 서버 배포 (Render + Neon)
+### Task 17: 서버 배포 (Render + Neon)
 
 **Files:**
-- Modify: `build.gradle` (`spring-boot-starter-flyway`, `flyway-database-postgresql`), `application.yml` (`spring.sql.init` 제거)
-- Move: `schema.sql` → `db/migration/V1__init.sql`, `data.sql` → `db/migration/V2__sample_data.sql`
 - Create: `server/Dockerfile` (멀티 스테이지: Gradle 빌드 → `eclipse-temurin:25-jre`), `server/.dockerignore`
 
-- [ ] **Step 1:** 전환 후 `docker compose down -v && docker compose up -d && ./gradlew test bootRun`. 기대: Flyway가 V1, V2를 적용하고 테스트가 PASS.
-- [ ] **Step 2:** `docker build -t todaycert-server server`가 성공한다.
-- [ ] **Step 3 (사용자):** Neon 프로젝트와 Render 계정을 만든다.
-- [ ] **Step 4:** Render Web Service(Docker)에 환경변수 `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`, `CORS_ALLOWED_ORIGINS`를 설정하고 배포한다. `curl -X POST <render-url>/api/auth/signup ...`가 201을 준다.
-- [ ] **Step 5:** Commit `chore: switch to Flyway and add server Dockerfile`
+Flyway는 Task 1에서 도입했다. 이 태스크는 이미지 빌드와 배포만 한다.
+
+- [ ] **Step 1:** `docker build -t todaycert-server server`가 성공한다.
+- [ ] **Step 2 (사용자):** Neon 프로젝트와 Render 계정을 만든다.
+- [ ] **Step 3:** Render Web Service(Docker)에 환경변수 `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`, `CORS_ALLOWED_ORIGINS`를 설정하고 배포한다. 로그에서 Flyway가 V1과 샘플 데이터를 적용했는지 확인한다. `curl -X POST <render-url>/api/auth/signup ...`가 201을 준다.
+- [ ] **Step 4:** Commit `chore: add server Dockerfile`
+
+**설계 보완 (2026-11-03 리뷰):**
+
+- [x] Flyway 전환과 샘플 데이터 분리는 Task 1로 옮겼다.
+- 첫 배포 이후에는 `V1__init.sql`을 고치지 않는다. 스키마를 바꾸려면 `V2__...`를 추가한다 (Flyway가 적용된 파일의 체크섬이 바뀌면 시작을 거부한다).
 
 ### Task 18: 웹 배포 (Vercel)
 
@@ -458,6 +495,10 @@ client/   (create-expo-app 최신 템플릿으로 새로 생성)
 
 - [ ] **Step 1:** 테스트 `atRisk_whenBelowFailScore`, `fewerThan5Solved_notAtRisk`, `usesLatestAttemptPerQuestion` → 구현 → 화면
 - [ ] **Step 2:** Commit `feat: add subject fail-risk report`
+
+**설계 보완 (2026-11-03 리뷰):**
+
+- [ ] "문제마다 가장 최근 풀이"는 #15에서 만든 `SolveRecordRepository` 쿼리를 재사용한다. 새로 만들지 않는다.
 
 ### Task 23: 문제별 정답률
 
