@@ -32,6 +32,31 @@ public class ExamAttempt {
     protected ExamAttempt() {
     }
 
+    public ExamAttempt(Member member, Exam exam, Instant startedAt) {
+        this.member = member;
+        this.exam = exam;
+        this.startedAt = startedAt;
+    }
+
+    public boolean isOwnedBy(Long memberId) {
+        return member.getId().equals(memberId);
+    }
+
+    public boolean isSubmitted() {
+        return submittedAt != null;
+    }
+
+    /**
+     * 채점 결과를 기록한다. submittedAt도 함께 넣는 이유: 제출 잠금은 UPDATE 쿼리로 먼저 걸지만,
+     * 이 엔티티는 그 전에 읽어서 submittedAt이 null인 상태다. JPA는 변경 감지 때 모든 컬럼을 UPDATE하므로
+     * 여기서 넣지 않으면 잠금으로 기록한 제출 시각을 null로 덮어쓴다.
+     */
+    public void recordResult(Instant submittedAt, double averageScore, boolean passed) {
+        this.submittedAt = submittedAt;
+        this.averageScore = averageScore;
+        this.passed = passed;
+    }
+
     public Long getId() { return id; }
     public Member getMember() { return member; }
     public Exam getExam() { return exam; }
