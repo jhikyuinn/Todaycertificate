@@ -3,3 +3,7 @@
 spring:
   flyway:
     locations: classpath:db/migration
+
+app:
+  jwt:
+    secret: test-only-secret-not-used-anywhere-else-0123456789 # 테스트 전용 값
