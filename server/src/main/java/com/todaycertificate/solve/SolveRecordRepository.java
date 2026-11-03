@@ -2,7 +2,9 @@ package com.todaycertificate.solve;
 
 import java.util.Collection;
 import java.util.List;
+import java.time.Instant;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -40,4 +42,7 @@ public interface SolveRecordRepository extends JpaRepository<SolveRecord, Long> 
             WHERE r.member_id = :memberId
             ORDER BY r.solved_at DESC, r.id DESC LIMIT 1""", nativeQuery = true)
     Optional<Long> findLastSolvedCertificateId(@Param("memberId") Long memberId);
+
+    @Query("SELECT DISTINCT r.question.id FROM SolveRecord r WHERE r.member.id = :memberId AND r.solvedAt >= :since")
+    Set<Long> findQuestionIdsSolvedSince(@Param("memberId") Long memberId, @Param("since") Instant since);
 }

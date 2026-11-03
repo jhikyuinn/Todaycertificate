@@ -16,6 +16,10 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
     @Query("SELECT q FROM Question q JOIN FETCH q.subject WHERE q.exam.id = :examId ORDER BY q.number")
     List<Question> findWithSubjectByExamId(@Param("examId") Long examId);
 
+    // 오늘의 문제 후보: 자격증의 전체 문제. id 순서 고정 → 같은 시드로 섞으면 같은 결과
+    @Query("SELECT q FROM Question q JOIN FETCH q.subject WHERE q.exam.certificate.id = :certificateId ORDER BY q.id")
+    List<Question> findWithSubjectByCertificateId(@Param("certificateId") Long certificateId);
+
     // 오답노트·별표 목록용: 문제, 과목, 회차, 자격증을 한 번에
     @Query("""
             SELECT q FROM Question q
