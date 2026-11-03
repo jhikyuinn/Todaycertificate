@@ -44,4 +44,7 @@ public class Member {
     public String getPassword() { return password; }
     public Role getRole() { return role; }
     public ExamSchedule getTargetSchedule() { return targetSchedule; }
+
+    /** null이면 목표 해제. */
+    public void changeTarget(ExamSchedule schedule) { this.targetSchedule = schedule; }
 }
