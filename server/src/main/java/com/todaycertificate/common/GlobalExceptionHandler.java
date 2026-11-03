@@ -6,6 +6,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
@@ -37,6 +41,19 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpMessageNotReadableException.class)
     ResponseEntity<ErrorResponse> handleUnreadable(HttpMessageNotReadableException e) {
         return ErrorResponse.of(ErrorCode.VALIDATION_FAILED, List.of());
+    }
+
+    // 필수 파라미터·파일 누락, 숫자 자리에 문자 등 요청 형식 오류
+    @ExceptionHandler({MissingServletRequestParameterException.class, MissingServletRequestPartException.class,
+            MethodArgumentTypeMismatchException.class})
+    ResponseEntity<ErrorResponse> handleBadRequest(Exception e) {
+        return ErrorResponse.of(ErrorCode.VALIDATION_FAILED, List.of());
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    ResponseEntity<ErrorResponse> handleTooLarge(MaxUploadSizeExceededException e) {
+        return ErrorResponse.of(ErrorCode.VALIDATION_FAILED,
+                List.of(new FieldError("file", "파일이 너무 큽니다.")));
     }
 
     @ExceptionHandler(NoResourceFoundException.class)

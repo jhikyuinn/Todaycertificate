@@ -25,6 +25,12 @@ public class Exam {
     protected Exam() {
     }
 
+    public Exam(Certificate certificate, int year, int round) {
+        this.certificate = certificate;
+        this.year = year;
+        this.round = round;
+    }
+
     public Long getId() { return id; }
     public Certificate getCertificate() { return certificate; }
     public int getYear() { return year; }

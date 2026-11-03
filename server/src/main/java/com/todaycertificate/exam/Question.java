@@ -34,6 +34,25 @@ public class Question {
     protected Question() {
     }
 
+    public Question(Exam exam, Subject subject, int number, String content, List<String> choices,
+                    int answerNo, String explanation) {
+        this.exam = exam;
+        this.number = number;
+        update(subject, content, choices, answerNo, explanation);
+    }
+
+    /** 같은 회차를 다시 업로드할 때 문제번호는 그대로 두고 내용만 바꾼다 (풀이 기록이 이 문제를 계속 가리키도록). */
+    public void update(Subject subject, String content, List<String> choices, int answerNo, String explanation) {
+        this.subject = subject;
+        this.content = content;
+        this.choice1 = choices.get(0);
+        this.choice2 = choices.get(1);
+        this.choice3 = choices.get(2);
+        this.choice4 = choices.get(3);
+        this.answerNo = answerNo;
+        this.explanation = explanation;
+    }
+
     public Long getId() { return id; }
     public Exam getExam() { return exam; }
     public Subject getSubject() { return subject; }

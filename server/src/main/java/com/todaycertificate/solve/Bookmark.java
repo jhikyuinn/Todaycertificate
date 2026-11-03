@@ -26,6 +26,11 @@ public class Bookmark {
     protected Bookmark() {
     }
 
+    public Bookmark(Member member, Question question) {
+        this.member = member;
+        this.question = question;
+    }
+
     public Long getId() { return id; }
     public Member getMember() { return member; }
     public Question getQuestion() { return question; }
