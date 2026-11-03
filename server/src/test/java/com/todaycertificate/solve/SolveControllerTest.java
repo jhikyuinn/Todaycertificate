@@ -81,6 +81,32 @@ class SolveControllerTest {
         solve(9999L, "{\"selectedNo\":1}").andExpect(status().isNotFound());
     }
 
+    @Test
+    void stats_nullBelow5() throws Exception {
+        priorChoices(1, 1, 3); // 기존 3건 + 이번 1건 = 4건
+        solve(questionId, "{\"selectedNo\":1}")
+                .andExpect(jsonPath("$.stats").doesNotExist());
+    }
+
+    @Test
+    void mostChosenWrong_ignoresCorrectChoice() throws Exception {
+        priorChoices(1, 1, 1, 3, 3); // 정답 1번 3회, 3번 2회
+        solve(questionId, "{\"selectedNo\":2}") // + 2번 1회 → 총 6회
+                .andExpect(jsonPath("$.stats.solvedCount").value(6))
+                .andExpect(jsonPath("$.stats.correctRate").value(50))
+                .andExpect(jsonPath("$.stats.mostChosenWrongNo").value(3));
+    }
+
+    /** 다른 회원들이 이 문제에서 고른 보기라고 보고 기록을 미리 넣는다. */
+    void priorChoices(int... selected) {
+        Long member = fixtures.memberId("user1");
+        for (int no : selected) {
+            jdbc.update("""
+                    INSERT INTO solve_record (member_id, question_id, selected_no, correct, mode, solved_at)
+                    VALUES (?, ?, ?, ?, 'STUDY', now())""", member, questionId, no, no == 1);
+        }
+    }
+
     ResultActions solve(Long id, String json) throws Exception {
         return mvc.perform(post("/api/questions/" + id + "/solve")
                 .header("Authorization", "Bearer " + user)

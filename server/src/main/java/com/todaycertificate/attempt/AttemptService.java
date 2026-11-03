@@ -14,6 +14,7 @@ import com.todaycertificate.exam.QuestionView;
 import com.todaycertificate.exam.QuestionViewAssembler;
 import com.todaycertificate.member.Member;
 import com.todaycertificate.member.MemberRepository;
+import com.todaycertificate.solve.QuestionStatsService;
 import com.todaycertificate.solve.SolveMode;
 import com.todaycertificate.solve.SolveRecord;
 import com.todaycertificate.solve.SolveRecordRepository;
@@ -35,15 +36,18 @@ public class AttemptService {
     private final MemberRepository members;
     private final SolveRecordRepository records;
     private final QuestionViewAssembler assembler;
+    private final QuestionStatsService stats;
 
     public AttemptService(ExamAttemptRepository attempts, ExamRepository exams, QuestionRepository questions,
-                          MemberRepository members, SolveRecordRepository records, QuestionViewAssembler assembler) {
+                          MemberRepository members, SolveRecordRepository records, QuestionViewAssembler assembler,
+                          QuestionStatsService stats) {
         this.attempts = attempts;
         this.exams = exams;
         this.questions = questions;
         this.members = members;
         this.records = records;
         this.assembler = assembler;
+        this.stats = stats;
     }
 
     public record Answer(Long questionId, int selectedNo) {
@@ -52,9 +56,9 @@ public class AttemptService {
     public record StartResult(Long attemptId, Instant startedAt, int timeLimitMinutes, List<QuestionView> questions) {
     }
 
-    /** selectedNo가 null이면 안 푼 문제 (오답 처리). */
+    /** selectedNo가 null이면 안 푼 문제 (오답 처리). stats는 전체 회원 통계, 표본이 적으면 null. */
     public record QuestionResult(Long questionId, int number, Integer selectedNo, int answerNo, boolean correct,
-                                 String explanation) {
+                                 String explanation, QuestionStatsService.Stats stats) {
     }
 
     public record AttemptResult(Long attemptId, double averageScore, boolean passed, List<SubjectScore> subjects,
@@ -122,10 +126,11 @@ public class AttemptService {
     }
 
     private AttemptResult grade(ExamAttempt attempt, List<Question> list, Map<Long, Integer> selected) {
+        Map<Long, QuestionStatsService.Stats> statsById = stats.statsFor(list);
         List<QuestionResult> results = list.stream().map(q -> {
             Integer no = selected.get(q.getId());
             return new QuestionResult(q.getId(), q.getNumber(), no, q.getAnswerNo(), no != null && q.isCorrect(no),
-                    q.getExplanation());
+                    q.getExplanation(), statsById.get(q.getId()));
         }).toList();
         Set<Long> correctIds = results.stream().filter(QuestionResult::correct).map(QuestionResult::questionId)
                 .collect(Collectors.toSet());

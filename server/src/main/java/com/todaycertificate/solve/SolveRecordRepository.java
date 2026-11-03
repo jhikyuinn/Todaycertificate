@@ -45,4 +45,19 @@ public interface SolveRecordRepository extends JpaRepository<SolveRecord, Long> 
 
     @Query("SELECT DISTINCT r.question.id FROM SolveRecord r WHERE r.member.id = :memberId AND r.solvedAt >= :since")
     Set<Long> findQuestionIdsSolvedSince(@Param("memberId") Long memberId, @Param("since") Instant since);
+
+    interface ChoiceCount {
+        Long getQuestionId();
+
+        int getSelectedNo();
+
+        long getCount();
+    }
+
+    // 전체 회원 기준, 문제마다 보기별로 몇 번 골랐는지 (문제별 정답률·많이 고른 오답용)
+    @Query(value = """
+            SELECT question_id AS questionId, selected_no AS selectedNo, count(*) AS count
+            FROM solve_record WHERE question_id IN (:questionIds)
+            GROUP BY question_id, selected_no""", nativeQuery = true)
+    List<ChoiceCount> countChoices(@Param("questionIds") Collection<Long> questionIds);
 }
