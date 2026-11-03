@@ -2,6 +2,7 @@ package com.todaycertificate.solve;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -31,4 +32,12 @@ public interface SolveRecordRepository extends JpaRepository<SolveRecord, Long> 
             WHERE member_id = :memberId
             ORDER BY question_id, solved_at DESC, id DESC""", nativeQuery = true)
     List<LatestSolve> findLatestPerQuestion(@Param("memberId") Long memberId);
+
+    // 가장 최근에 푼 문제의 자격증 (오늘의 문제·과락 리포트의 대상 자격증 후보)
+    @Query(value = """
+            SELECT e.certificate_id FROM solve_record r
+            JOIN question q ON q.id = r.question_id JOIN exam e ON e.id = q.exam_id
+            WHERE r.member_id = :memberId
+            ORDER BY r.solved_at DESC, r.id DESC LIMIT 1""", nativeQuery = true)
+    Optional<Long> findLastSolvedCertificateId(@Param("memberId") Long memberId);
 }
