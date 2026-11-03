@@ -1,0 +1,17 @@
+spring:
+  application:
+    name: server
+  config:
+    # 로컬: server/.env를 읽는다. 배포: 같은 이름의 환경변수가 우선한다.
+    import: optional:file:.env[.properties]
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate # 테이블은 schema.sql이 만들고, JPA는 엔티티와 맞는지만 검사
+  sql:
+    init:
+      mode: always
