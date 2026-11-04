@@ -88,6 +88,31 @@ class AdminExamUploadControllerTest {
     }
 
     @Test
+    void reupload_changesTypeAndKeepsSolveRecords() throws Exception {
+        fixtures.userToken("user1");
+        Long member = fixtures.memberId("user1");
+        Long q1 = seed.questionIds().get(0);
+        jdbc.update("""
+                INSERT INTO solve_record (member_id, question_id, selected_no, correct, mode, solved_at)
+                VALUES (?, ?, 2, false, 'STUDY', now())""", member, q1);
+
+        // 1번을 객관식 → 주관식으로 바꾼다. 보기·정답번호가 비워져야 DB CHECK를 통과한다
+        upload(admin, 2025, 1, "과목번호,문제번호,문제,보기1,보기2,보기3,보기4,정답번호,해설,유형\n"
+                + "1,1,정의어는?,,,,,DDL|데이터 정의어,,주관식-정확히\n")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.updated").value(1));
+
+        assertThat(jdbc.queryForMap("SELECT type, answer_text, exact_match, choice1, answer_no FROM question WHERE id = ?", q1))
+                .containsEntry("type", "SHORT_ANSWER")
+                .containsEntry("answer_text", "DDL|데이터 정의어")
+                .containsEntry("exact_match", true)
+                .containsEntry("choice1", null)
+                .containsEntry("answer_no", null);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM solve_record WHERE question_id = ?", Integer.class, q1))
+                .isEqualTo(1);
+    }
+
+    @Test
     void invalidFile_savesNothing() throws Exception {
         // 2번째 행 정답번호 오류, 3번째 행 없는 과목번호
         upload(admin, 2024, 2, HEADER + "1,1,문제,a,b,c,d,1,\n1,2,문제,a,b,c,d,5,\n9,3,문제,a,b,c,d,1,\n")

@@ -1,5 +1,6 @@
 package com.todaycertificate.exam.upload;
 
+import com.todaycertificate.exam.QuestionType;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.UncheckedIOException;
@@ -8,21 +9,26 @@ import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Stream;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 
 /**
  * 기출 CSV를 읽고 검증한다. DB나 Spring에 의존하지 않는 순수 코드라 단위 테스트가 쉽다.
- * 형식: 과목번호,문제번호,문제,보기1,보기2,보기3,보기4,정답번호,해설
+ * 형식: 과목번호,문제번호,문제,보기1,보기2,보기3,보기4,정답번호,해설[,유형]
+ * 유형 칸은 선택이다(없거나 비면 객관식). 주관식은 보기를 비우고 정답번호 칸에 허용 답을 '|'로 구분해 쓴다.
  */
 public final class CsvQuestionParser {
 
     static final List<String> HEADER =
             List.of("과목번호", "문제번호", "문제", "보기1", "보기2", "보기3", "보기4", "정답번호", "해설");
+    static final List<String> TYPED_HEADER =
+            Stream.concat(HEADER.stream(), Stream.of("유형")).toList();
     private static final String FENCE = "```";
 
     private CsvQuestionParser() {
@@ -45,8 +51,10 @@ public final class CsvQuestionParser {
             return CsvParseResult.fileError("CSV 형식을 읽을 수 없습니다. 큰따옴표가 닫히지 않은 칸이 있는지 확인해 주세요.");
         }
 
-        if (records.isEmpty() || !HEADER.equals(records.getFirst().stream().map(String::strip).toList())) {
-            return CsvParseResult.fileError("첫 줄(헤더)은 " + String.join(",", HEADER) + " 이어야 합니다.");
+        List<String> header = records.isEmpty() ? List.of() : records.getFirst().stream().map(String::strip).toList();
+        if (!header.equals(HEADER) && !header.equals(TYPED_HEADER)) {
+            return CsvParseResult.fileError("첫 줄(헤더)은 " + String.join(",", HEADER)
+                    + " 이어야 합니다. (주관식이 있으면 끝에 ,유형 을 붙이세요)");
         }
 
         List<QuestionRow> rows = new ArrayList<>();
@@ -55,7 +63,7 @@ public final class CsvQuestionParser {
         for (int i = 1; i < records.size(); i++) {
             int rowNumber = i; // 헤더를 뺀 1부터의 순번
             List<String> rowErrors = new ArrayList<>();
-            QuestionRow row = toRow(records.get(i), subjectNumbers, seenNumbers, rowErrors);
+            QuestionRow row = toRow(records.get(i), header.size(), subjectNumbers, seenNumbers, rowErrors);
             rowErrors.forEach(message -> errors.add(new CsvError(rowNumber, message)));
             if (rowErrors.isEmpty()) {
                 rows.add(row);
@@ -75,12 +83,18 @@ public final class CsvQuestionParser {
                 .toString();
     }
 
-    private static QuestionRow toRow(CSVRecord record, Set<Integer> subjectNumbers, Set<Integer> seenNumbers,
-                                     List<String> errors) {
-        if (record.size() != HEADER.size()) {
-            errors.add("열이 " + HEADER.size() + "개여야 합니다. (현재 " + record.size() + "개)");
+    private static QuestionRow toRow(CSVRecord record, int columns, Set<Integer> subjectNumbers,
+                                     Set<Integer> seenNumbers, List<String> errors) {
+        if (record.size() != columns) {
+            errors.add("열이 " + columns + "개여야 합니다. (현재 " + record.size() + "개)");
             return null;
         }
+        String typeCell = columns > HEADER.size() ? record.get(9).strip() : "";
+        if (!List.of("", "객관식", "주관식", "주관식-정확히").contains(typeCell)) {
+            errors.add("'유형'은 객관식, 주관식, 주관식-정확히 중 하나여야 합니다.");
+            return null;
+        }
+        boolean shortAnswer = typeCell.startsWith("주관식");
         // 텍스트 칸은 strip하지 않는다: 코드 들여쓰기를 지키기 위해서다
         Integer subjectNumber = parseInt(record.get(0), "과목번호", errors);
         if (subjectNumber != null && !subjectNumbers.contains(subjectNumber)) {
@@ -90,14 +104,13 @@ public final class CsvQuestionParser {
         if (number != null && !seenNumbers.add(number)) {
             errors.add("문제번호 " + number + "이(가) 중복됩니다.");
         }
-        for (int col = 2; col <= 6; col++) {
-            if (record.get(col).isBlank()) {
-                errors.add("'" + HEADER.get(col) + "' 칸이 비어 있습니다.");
-            }
+        if (record.get(2).isBlank()) {
+            errors.add("'문제' 칸이 비어 있습니다.");
         }
-        Integer answerNo = parseInt(record.get(7), "정답번호", errors);
-        if (answerNo != null && (answerNo < 1 || answerNo > 4)) {
-            errors.add("정답번호는 1~4여야 합니다. (현재 " + answerNo + ")");
+        if (shortAnswer) {
+            validateShortAnswer(record, errors);
+        } else {
+            validateChoices(record, errors);
         }
         for (int col : new int[] {2, 3, 4, 5, 6, 8}) {
             if (countFences(record.get(col)) % 2 != 0) {
@@ -108,8 +121,39 @@ public final class CsvQuestionParser {
             return null;
         }
         String explanation = record.get(8).isBlank() ? null : record.get(8);
+        if (shortAnswer) {
+            return new QuestionRow(subjectNumber, number, record.get(2), List.of(), null, explanation,
+                    QuestionType.SHORT_ANSWER, record.get(7).strip(), typeCell.equals("주관식-정확히"));
+        }
         return new QuestionRow(subjectNumber, number, record.get(2),
-                List.of(record.get(3), record.get(4), record.get(5), record.get(6)), answerNo, explanation);
+                List.of(record.get(3), record.get(4), record.get(5), record.get(6)), Integer.valueOf(record.get(7).strip()),
+                explanation, QuestionType.MULTIPLE_CHOICE, null, false);
+    }
+
+    private static void validateChoices(CSVRecord record, List<String> errors) {
+        for (int col = 3; col <= 6; col++) {
+            if (record.get(col).isBlank()) {
+                errors.add("'" + HEADER.get(col) + "' 칸이 비어 있습니다.");
+            }
+        }
+        Integer answerNo = parseInt(record.get(7), "정답번호", errors);
+        if (answerNo != null && (answerNo < 1 || answerNo > 4)) {
+            errors.add("정답번호는 1~4여야 합니다. (현재 " + answerNo + ")");
+        }
+    }
+
+    private static void validateShortAnswer(CSVRecord record, List<String> errors) {
+        for (int col = 3; col <= 6; col++) {
+            if (!record.get(col).isBlank()) {
+                errors.add("주관식 문제는 보기 칸을 비워 주세요.");
+                break;
+            }
+        }
+        // '|'는 허용 답 구분자다. limit -1로 끝의 빈 칸("A|")까지 잡는다
+        String[] alternatives = record.get(7).strip().split("\\|", -1);
+        if (Arrays.stream(alternatives).anyMatch(String::isBlank)) {
+            errors.add("주관식 정답이 비어 있습니다.");
+        }
     }
 
     private static Integer parseInt(String value, String column, List<String> errors) {
