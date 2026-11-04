@@ -8,6 +8,8 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.util.unit.DataSize;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -19,6 +21,10 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    // 안내 문구의 한도를 설정값에서 읽어서, 한도를 바꿔도 문구가 따로 놀지 않게 한다
+    @Value("${spring.servlet.multipart.max-file-size}")
+    private DataSize maxFileSize;
 
     record FieldError(String field, String message) {
     }
@@ -53,7 +59,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     ResponseEntity<ErrorResponse> handleTooLarge(MaxUploadSizeExceededException e) {
         return ErrorResponse.of(ErrorCode.VALIDATION_FAILED,
-                List.of(new FieldError("file", "파일이 너무 큽니다.")));
+                List.of(new FieldError("file", "파일이 너무 큽니다 (최대 " + maxFileSize.toMegabytes() + "MB).")));
     }
 
     @ExceptionHandler(NoResourceFoundException.class)
