@@ -1,3 +1,6 @@
 node_modules/
 .expo/
 .env
+
+# 기출문제 원본 PDF (저작권 확인 전, 공개 레포에 올리지 않는다)
+/*.pdf
