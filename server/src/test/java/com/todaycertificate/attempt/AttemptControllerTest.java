@@ -70,7 +70,9 @@ class AttemptControllerTest {
                 .andExpect(jsonPath("$.attemptId").isNumber())
                 .andExpect(jsonPath("$.timeLimitMinutes").value(60))
                 .andExpect(jsonPath("$.questions.length()").value(4))
-                .andExpect(jsonPath("$.questions[0]", not(hasKey("answerNo"))));
+                .andExpect(jsonPath("$.questions[0].type").value("MULTIPLE_CHOICE"))
+                .andExpect(jsonPath("$.questions[0]", not(hasKey("answerNo"))))
+                .andExpect(jsonPath("$.questions[0]", not(hasKey("answerText"))));
     }
 
     @Test
@@ -167,6 +169,46 @@ class AttemptControllerTest {
         String viewed = mvc.perform(get("/api/attempts/" + attempt).header("Authorization", "Bearer " + user))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         assertThat(viewed).isEqualTo(submitted);
+    }
+
+    @Test
+    void submit_mixedExam_gradesBoth() throws Exception {
+        fixtures.cleanAll();
+        user = fixtures.userToken("user1");
+        seed = fixtures.seedExam("정보처리기사 실기", 1); // 1번 객관식, 2번 → 주관식
+        q = seed.questionIds();
+        fixtures.makeShortAnswer(q.get(1), "DDL|데이터 정의어");
+        Long attempt = start(user);
+
+        String json = "{\"answers\":[{\"questionId\":" + q.get(0) + ",\"selectedNo\":1},"
+                + "{\"questionId\":" + q.get(1) + ",\"answerText\":\" 데이터 정의어 \"}]}";
+        String submitted = submit(user, attempt, json)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.averageScore").value(100.0))
+                .andExpect(jsonPath("$.questions[0].type").value("MULTIPLE_CHOICE"))
+                .andExpect(jsonPath("$.questions[0].correct").value(true))
+                .andExpect(jsonPath("$.questions[1].type").value("SHORT_ANSWER"))
+                .andExpect(jsonPath("$.questions[1].correct").value(true))
+                .andExpect(jsonPath("$.questions[1].answerText").value(" 데이터 정의어 "))
+                .andExpect(jsonPath("$.questions[1].correctAnswerText").value("DDL|데이터 정의어"))
+                .andExpect(jsonPath("$.questions[1].answerNo").doesNotExist())
+                .andReturn().getResponse().getContentAsString();
+
+        String viewed = mvc.perform(get("/api/attempts/" + attempt).header("Authorization", "Bearer " + user))
+                .andReturn().getResponse().getContentAsString();
+        assertThat(viewed).isEqualTo(submitted);
+    }
+
+    @Test
+    void submit_answerNotMatchingType_returns400AndStaysOpen() throws Exception {
+        fixtures.makeShortAnswer(q.get(1), "DDL");
+        Long attempt = start(user);
+
+        submit(user, attempt, answers(q.get(1), 1))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details[0].field").value("selectedNo"));
+        submit(user, attempt, halfCorrect().replace("\"selectedNo\":2", "\"answerText\":\"x\""))
+                .andExpect(status().isOk());
     }
 
     @Test

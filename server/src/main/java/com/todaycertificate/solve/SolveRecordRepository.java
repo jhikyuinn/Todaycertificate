@@ -49,15 +49,17 @@ public interface SolveRecordRepository extends JpaRepository<SolveRecord, Long> 
     interface ChoiceCount {
         Long getQuestionId();
 
-        int getSelectedNo();
+        Integer getSelectedNo(); // 주관식 기록은 null
+
+        String getAnswerText(); // 객관식 기록은 null
 
         long getCount();
     }
 
-    // 전체 회원 기준, 문제마다 보기별로 몇 번 골랐는지 (문제별 정답률·많이 고른 오답용)
+    // 전체 회원 기준, 문제마다 같은 답(보기 번호 또는 주관식 답)이 몇 번 나왔는지 (문제별 정답률·많이 고른 오답용)
     @Query(value = """
-            SELECT question_id AS questionId, selected_no AS selectedNo, count(*) AS count
+            SELECT question_id AS questionId, selected_no AS selectedNo, answer_text AS answerText, count(*) AS count
             FROM solve_record WHERE question_id IN (:questionIds)
-            GROUP BY question_id, selected_no""", nativeQuery = true)
+            GROUP BY question_id, selected_no, answer_text""", nativeQuery = true)
     List<ChoiceCount> countChoices(@Param("questionIds") Collection<Long> questionIds);
 }

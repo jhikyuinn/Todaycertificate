@@ -5,6 +5,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -24,7 +25,9 @@ public class AttemptController {
         this.service = service;
     }
 
-    record AnswerRequest(@NotNull Long questionId, @NotNull @Min(1) @Max(4) Integer selectedNo) {
+    // 객관식은 selectedNo, 주관식은 answerText 하나만. 문제 유형에 맞는지는 AttemptService가 검사한다
+    record AnswerRequest(@NotNull Long questionId, @Min(1) @Max(4) Integer selectedNo,
+                         @Size(max = 500) String answerText) {
     }
 
     // 안 푼 문제는 answers에서 빠진다. 전부 안 풀고 제출하는 것도 허용 (빈 목록)
@@ -41,7 +44,7 @@ public class AttemptController {
     AttemptService.AttemptResult submit(@PathVariable Long id, @Valid @RequestBody SubmitRequest request,
                                         Authentication auth) {
         return service.submit(CurrentMember.id(auth), id, request.answers().stream()
-                .map(a -> new AttemptService.Answer(a.questionId(), a.selectedNo())).toList());
+                .map(a -> new AttemptService.Answer(a.questionId(), a.selectedNo(), a.answerText())).toList());
     }
 
     @GetMapping("/api/attempts/{id}")

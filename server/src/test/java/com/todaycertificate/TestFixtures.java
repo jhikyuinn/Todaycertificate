@@ -68,4 +68,12 @@ public class TestFixtures {
         }
         return new Seed(certId, examId, ids);
     }
+
+    /** seedExam으로 만든 객관식 문제를 주관식으로 바꾼다. answerText는 '|'로 구분한 허용 답. */
+    public void makeShortAnswer(Long questionId, String answerText) {
+        jdbc.update("""
+                UPDATE question SET type = 'SHORT_ANSWER', choice1 = NULL, choice2 = NULL, choice3 = NULL,
+                                    choice4 = NULL, answer_no = NULL, answer_text = ?
+                WHERE id = ?""", answerText, questionId);
+    }
 }

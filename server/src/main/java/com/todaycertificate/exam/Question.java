@@ -100,11 +100,18 @@ public class Question {
     public boolean isExactMatch() { return exactMatch; }
     public String getExplanation() { return explanation; }
 
-    public boolean isCorrect(int selectedNo) {
-        return answerNo != null && answerNo == selectedNo;
+    /** 객관식은 selectedNo, 주관식은 input으로 채점한다. 유형에 안 맞는 쪽은 무시한다. */
+    public boolean isCorrect(Integer selectedNo, String input) {
+        return type == QuestionType.SHORT_ANSWER
+                ? ShortAnswerGrader.isCorrect(answerText, exactMatch, input)
+                : selectedNo != null && selectedNo.equals(answerNo);
     }
 
-    public boolean isCorrect(String input) {
-        return type == QuestionType.SHORT_ANSWER && ShortAnswerGrader.isCorrect(answerText, exactMatch, input);
+    /** 유형에 맞는 답 하나만 왔으면 null, 아니면 문제가 된 필드 이름. 객관식은 selectedNo, 주관식은 answerText. */
+    public String invalidAnswerField(Integer selectedNo, String input) {
+        if (type == QuestionType.SHORT_ANSWER) {
+            return selectedNo != null ? "selectedNo" : input == null ? "answerText" : null;
+        }
+        return input != null ? "answerText" : selectedNo == null ? "selectedNo" : null;
     }
 }
