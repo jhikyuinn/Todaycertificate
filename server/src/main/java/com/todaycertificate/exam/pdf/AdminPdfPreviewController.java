@@ -6,7 +6,6 @@ import com.todaycertificate.certificate.SubjectRepository;
 import com.todaycertificate.common.ApiException;
 import com.todaycertificate.common.ErrorCode;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -51,9 +50,6 @@ public class AdminPdfPreviewController {
         if (row.subjectNumber() == 0 || known.contains(row.subjectNumber())) {
             return row;
         }
-        List<String> warnings = new ArrayList<>(row.warnings());
-        warnings.add("등록되지 않은 과목번호입니다: " + row.subjectNumber());
-        return new PreviewRow(row.subjectNumber(), row.number(), row.content(), row.choices(),
-                row.answerNo(), row.explanation(), warnings);
+        return row.withWarning("등록되지 않은 과목번호입니다: " + row.subjectNumber());
     }
 }

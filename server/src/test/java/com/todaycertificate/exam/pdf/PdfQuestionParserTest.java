@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.todaycertificate.common.ApiException;
 import com.todaycertificate.common.ErrorCode;
+import com.todaycertificate.exam.QuestionType;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -113,6 +114,53 @@ class PdfQuestionParserTest {
         assertThat(rows.get(0).explanation()).isEqualTo("스택은 LIFO 구조라서 마지막에 넣은 것이 먼저 나온다.\n\n큐는 FIFO다.");
         assertThat(rows.get(1).explanation()).isEqualTo("결합도는 낮을수록 좋다. 1. 이 줄은 해설 안의 번호 목록이다.");
         assertThat(rows.get(2).explanation()).isNull();
+    }
+
+    @Test
+    void practicalPdf_parsesShortAnswerRowsWithCode() throws IOException {
+        // 브라우저에서 인쇄한 실기 형식. 머리글(날짜, 문서 제목)·바닥글(주소, 쪽수)이 들어 있고 3번은 두 쪽에 걸친다.
+        List<PreviewRow> rows = PdfQuestionParser.parse(PdfTextExtractor.extract(resource("sample-practical.pdf")), null);
+
+        assertThat(rows).extracting(PreviewRow::number).containsExactly(1, 2, 3);
+        assertThat(rows).extracting(PreviewRow::type).containsOnly(QuestionType.SHORT_ANSWER);
+        assertThat(rows).extracting(PreviewRow::answerText).containsExactly("6", "DDL", "싱글톤");
+        assertThat(rows).allSatisfy(row -> {
+            assertThat(row.warnings()).isEmpty();
+            assertThat(row.choices()).isEmpty();
+            assertThat(row.answerNo()).isNull();
+            assertThat(row.content() + row.answerText() + row.explanation())
+                    .doesNotContain("http", "오후", "예시-1", "예시 실기 시험지");
+        });
+        assertThat(rows.get(0).content()).isEqualTo("""
+                다음 Python 코드를 실행하면 출력되는 값을 적으시오.
+                ```
+                def total(items):
+                    result = 0
+                    for x in items:
+                        if x % 2 == 0:
+                            result += x
+                    return result
+                print(total([1, 2, 3, 4]))
+                ```""");
+        assertThat(rows.get(1).explanation()).isEqualTo("CREATE, ALTER, DROP처럼 구조를 정의하는 명령은 데이터 정의어(DDL)이다.");
+    }
+
+    @Test
+    void shortAnswer_singleEnglishLineIsNotCode_missingAnswerWarns() {
+        String text = """
+                문제 1
+                빈칸에 들어갈 용어를 적으시오.
+                Race Condition
+                공격과 관련 있다.
+                정답 및 해설
+                [해설]
+                설명
+                """;
+        PreviewRow row = PdfQuestionParser.parse(text, null).getFirst();
+
+        assertThat(row.content()).isEqualTo("빈칸에 들어갈 용어를 적으시오. Race Condition 공격과 관련 있다.");
+        assertThat(row.answerText()).isNull();
+        assertThat(row.warnings()).containsExactly("정답을 찾지 못했어요");
     }
 
     @Test

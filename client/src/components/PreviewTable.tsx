@@ -29,6 +29,7 @@ export function PreviewTable({ rows, onChange }: { rows: PreviewRow[]; onChange:
         <Card key={index} style={{ gap: 4 }}>
           <View style={s.head}>
             <Text style={s.title}>{row.number}번</Text>
+            {row.type === 'SHORT_ANSWER' && <Badge text="주관식" />}
             {row.warnings.length > 0 && <Badge text="확인 필요" tone="warn" />}
             <View style={{ flex: 1 }} />
             <Pressable
@@ -50,18 +51,28 @@ export function PreviewTable({ rows, onChange }: { rows: PreviewRow[]; onChange:
             <View style={{ flex: 1 }}>
               <Field label="과목번호" value={row.subjectNumber ? String(row.subjectNumber) : ''} onChangeText={(t) => update(index, { subjectNumber: toNumber(t) })} keyboardType="number-pad" />
             </View>
-            <View style={{ flex: 1 }}>
-              <Field label="정답번호" value={row.answerNo ? String(row.answerNo) : ''} onChangeText={(t) => update(index, { answerNo: toNumber(t) || null })} keyboardType="number-pad" />
-            </View>
-          </View>
-          <Field label="문제" value={row.content} onChangeText={(t) => update(index, { content: t })} multiline style={{ minHeight: 70 }} />
-          <View style={s.choices}>
-            {[0, 1, 2, 3].map((c) => (
-              <View key={c} style={s.choice}>
-                <Field label={`보기${c + 1}`} value={row.choices[c] ?? ''} onChangeText={(t) => setChoice(index, c, t)} />
+            {row.type !== 'SHORT_ANSWER' && (
+              <View style={{ flex: 1 }}>
+                <Field label="정답번호" value={row.answerNo ? String(row.answerNo) : ''} onChangeText={(t) => update(index, { answerNo: toNumber(t) || null })} keyboardType="number-pad" />
               </View>
-            ))}
+            )}
           </View>
+          <Field label="문제" value={row.content} onChangeText={(t) => update(index, { content: t })} multiline style={s.content} />
+          {row.type === 'SHORT_ANSWER' ? (
+            <Field
+              label="정답 (여러 개 인정하면 | 로 구분)"
+              value={row.answerText ?? ''}
+              onChangeText={(t) => update(index, { answerText: t || null })}
+            />
+          ) : (
+            <View style={s.choices}>
+              {[0, 1, 2, 3].map((c) => (
+                <View key={c} style={s.choice}>
+                  <Field label={`보기${c + 1}`} value={row.choices[c] ?? ''} onChangeText={(t) => setChoice(index, c, t)} />
+                </View>
+              ))}
+            </View>
+          )}
           <Field label="해설" value={row.explanation ?? ''} onChangeText={(t) => update(index, { explanation: t || null })} multiline style={{ minHeight: 50 }} />
         </Card>
       ))}
@@ -76,4 +87,6 @@ const s = StyleSheet.create({
   row: { flexDirection: 'row', gap: 10, marginTop: 8 },
   choices: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 10 },
   choice: { flexGrow: 1, flexBasis: 220 },
+  // 코드(``` 블록)가 들어갈 수 있어 고정폭으로, 들여쓰기가 보이게
+  content: { minHeight: 70, fontFamily: 'ui-monospace, Menlo, Consolas, monospace', fontSize: 13 },
 });

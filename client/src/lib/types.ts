@@ -117,13 +117,18 @@ export type HistoryItem = {
   passed: boolean;
 };
 
-/** PDF 미리보기 한 줄 (#41). 못 찾은 값: subjectNumber 0, answerNo·explanation null. 저장 전 화면에서 고친다. */
+/**
+ * PDF 미리보기 한 줄 (#41). 못 찾은 값: subjectNumber 0, answerNo·answerText·explanation null. 저장 전 화면에서 고친다.
+ * 객관식은 choices·answerNo, 주관식(실기)은 answerText(허용 답을 |로 구분)만 쓴다.
+ */
 export type PreviewRow = {
   subjectNumber: number;
   number: number;
+  type: QuestionType;
   content: string;
   choices: string[];
   answerNo: number | null;
+  answerText: string | null;
   explanation: string | null;
   warnings: string[];
 };

@@ -1,5 +1,6 @@
 package com.todaycertificate.exam.pdf;
 
+import com.todaycertificate.exam.QuestionType;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -10,6 +11,7 @@ import java.util.regex.Pattern;
 /**
  * PDF에서 뽑은 글자를 문제 행으로 나눈다. DB나 Spring에 의존하지 않는 순수 코드다.
  * 줄마다 과목 줄 / 문제 시작 줄 / 정답표 줄인지 보고, 나머지 줄은 지금 문제에 이어 붙인다.
+ * "문제 N" 줄이 있는 실기(주관식) 형식은 {@link PdfShortAnswerParser}가 맡는다.
  */
 public final class PdfQuestionParser {
 
@@ -29,6 +31,9 @@ public final class PdfQuestionParser {
     }
 
     public static List<PreviewRow> parse(String questionText, String explanationText) {
+        if (PdfShortAnswerParser.matches(questionText)) {
+            return PdfShortAnswerParser.parse(questionText); // 실기 형식은 정답·해설이 문제 바로 아래에 있다
+        }
         List<Block> blocks = new ArrayList<>();
         Map<Integer, Integer> answerTable = new HashMap<>();
         int subject = 0;
@@ -88,9 +93,9 @@ public final class PdfQuestionParser {
         if (block.subjectNumber() == 0) {
             warnings.add("과목을 찾지 못했어요");
         }
-        return new PreviewRow(block.subjectNumber(), block.number(), clean(content),
+        return new PreviewRow(block.subjectNumber(), block.number(), QuestionType.MULTIPLE_CHOICE, clean(content),
                 choices.stream().map(PdfQuestionParser::clean).toList(),
-                answerNo, explanations.get(block.number()), warnings);
+                answerNo, null, explanations.get(block.number()), warnings);
     }
 
     /** "1. ② 2. ③"처럼 정답 항목만 있는 줄이면 정답표에 담고 true. */
@@ -144,7 +149,7 @@ public final class PdfQuestionParser {
         return result;
     }
 
-    private static String clean(CharSequence text) {
+    static String clean(CharSequence text) {
         return text.toString().replaceAll("\\s+", " ").strip();
     }
 }
