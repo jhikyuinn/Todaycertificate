@@ -30,7 +30,8 @@ public class SolveRecord {
     @ManyToOne(fetch = FetchType.LAZY)
     private ExamAttempt attempt; // 시험 모드 기록만 채운다. 공부 모드는 null
 
-    private int selectedNo;
+    private Integer selectedNo; // 객관식 기록만
+    private String answerText;  // 주관식 기록만
     private boolean correct;
 
     @Enumerated(EnumType.STRING)
@@ -41,14 +42,18 @@ public class SolveRecord {
     protected SolveRecord() {
     }
 
-    /** attempt는 시험 모드일 때만 넘긴다. 정답 여부는 문제의 정답번호로 계산한다. */
-    public SolveRecord(Member member, Question question, ExamAttempt attempt, int selectedNo,
+    /**
+     * attempt는 시험 모드일 때만 넘긴다. selectedNo(객관식)와 answerText(주관식) 중 하나만 넘긴다
+     * (호출 전에 Question.invalidAnswerField로 검사). 정답 여부는 문제 유형에 맞게 계산한다.
+     */
+    public SolveRecord(Member member, Question question, ExamAttempt attempt, Integer selectedNo, String answerText,
                        SolveMode mode, Instant solvedAt) {
         this.member = member;
         this.question = question;
         this.attempt = attempt;
         this.selectedNo = selectedNo;
-        this.correct = question.isCorrect(selectedNo);
+        this.answerText = answerText;
+        this.correct = question.isCorrect(selectedNo, answerText);
         this.mode = mode;
         this.solvedAt = solvedAt;
     }
@@ -57,7 +62,8 @@ public class SolveRecord {
     public Member getMember() { return member; }
     public Question getQuestion() { return question; }
     public ExamAttempt getAttempt() { return attempt; }
-    public int getSelectedNo() { return selectedNo; }
+    public Integer getSelectedNo() { return selectedNo; }
+    public String getAnswerText() { return answerText; }
     public boolean isCorrect() { return correct; }
     public SolveMode getMode() { return mode; }
     public Instant getSolvedAt() { return solvedAt; }

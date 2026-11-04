@@ -10,6 +10,7 @@ import com.todaycertificate.exam.Exam;
 import com.todaycertificate.exam.ExamRepository;
 import com.todaycertificate.exam.Question;
 import com.todaycertificate.exam.QuestionRepository;
+import com.todaycertificate.exam.QuestionType;
 import com.todaycertificate.exam.QuestionView;
 import com.todaycertificate.exam.QuestionViewAssembler;
 import com.todaycertificate.member.Member;
@@ -50,15 +51,20 @@ public class AttemptService {
         this.stats = stats;
     }
 
-    public record Answer(Long questionId, int selectedNo) {
+    /** 객관식은 selectedNo, 주관식은 answerText 하나만 채운다. */
+    public record Answer(Long questionId, Integer selectedNo, String answerText) {
     }
 
     public record StartResult(Long attemptId, Instant startedAt, int timeLimitMinutes, List<QuestionView> questions) {
     }
 
-    /** selectedNo가 null이면 안 푼 문제 (오답 처리). stats는 전체 회원 통계, 표본이 적으면 null. */
-    public record QuestionResult(Long questionId, int number, Integer selectedNo, int answerNo, boolean correct,
-                                 String explanation, QuestionStatsService.Stats stats) {
+    /**
+     * 내 답은 selectedNo(객관식) 또는 answerText(주관식), 정답은 answerNo 또는 correctAnswerText.
+     * 내 답이 둘 다 null이면 안 푼 문제 (오답 처리). stats는 전체 회원 통계, 표본이 적으면 null.
+     */
+    public record QuestionResult(Long questionId, int number, QuestionType type, Integer selectedNo, String answerText,
+                                 Integer answerNo, String correctAnswerText, boolean correct, String explanation,
+                                 QuestionStatsService.Stats stats) {
     }
 
     public record AttemptResult(Long attemptId, double averageScore, boolean passed, List<SubjectScore> subjects,
@@ -82,11 +88,16 @@ public class AttemptService {
         Map<Long, Question> byId = list.stream().collect(Collectors.toMap(Question::getId, q -> q));
 
         // 검증을 잠금보다 먼저: 잘못된 요청이 응시를 "제출됨"으로 만들지 않게
-        Map<Long, Integer> selected = new HashMap<>();
+        Map<Long, Answer> selected = new HashMap<>();
         for (Answer a : answers) {
-            if (!byId.containsKey(a.questionId()) || selected.put(a.questionId(), a.selectedNo()) != null) {
+            if (!byId.containsKey(a.questionId()) || selected.put(a.questionId(), a) != null) {
                 throw new ApiException(ErrorCode.VALIDATION_FAILED, List.of(Map.of("field", "answers",
                         "message", "이 시험에 없는 문제이거나 같은 문제를 두 번 보냈습니다: " + a.questionId())));
+            }
+            String invalid = byId.get(a.questionId()).invalidAnswerField(a.selectedNo(), a.answerText());
+            if (invalid != null) {
+                throw new ApiException(ErrorCode.VALIDATION_FAILED, List.of(Map.of("field", invalid,
+                        "message", "객관식은 selectedNo, 주관식은 answerText 하나만 보내야 합니다: " + a.questionId())));
             }
         }
 
@@ -96,8 +107,9 @@ public class AttemptService {
         }
 
         Member member = members.getReferenceById(memberId);
-        records.saveAll(selected.entrySet().stream()
-                .map(e -> new SolveRecord(member, byId.get(e.getKey()), attempt, e.getValue(), SolveMode.EXAM, now))
+        records.saveAll(selected.values().stream()
+                .map(a -> new SolveRecord(member, byId.get(a.questionId()), attempt, a.selectedNo(), a.answerText(),
+                        SolveMode.EXAM, now))
                 .toList());
 
         AttemptResult result = grade(attempt, list, selected);
@@ -112,8 +124,9 @@ public class AttemptService {
         if (!attempt.isSubmitted()) {
             throw new ApiException(ErrorCode.NOT_FOUND);
         }
-        Map<Long, Integer> selected = records.findByAttemptId(attemptId).stream()
-                .collect(Collectors.toMap(r -> r.getQuestion().getId(), SolveRecord::getSelectedNo));
+        Map<Long, Answer> selected = records.findByAttemptId(attemptId).stream()
+                .map(r -> new Answer(r.getQuestion().getId(), r.getSelectedNo(), r.getAnswerText()))
+                .collect(Collectors.toMap(Answer::questionId, a -> a));
         return grade(attempt, questions.findWithSubjectByExamId(attempt.getExam().getId()), selected);
     }
 
@@ -125,11 +138,13 @@ public class AttemptService {
         return attempt;
     }
 
-    private AttemptResult grade(ExamAttempt attempt, List<Question> list, Map<Long, Integer> selected) {
+    private AttemptResult grade(ExamAttempt attempt, List<Question> list, Map<Long, Answer> selected) {
         Map<Long, QuestionStatsService.Stats> statsById = stats.statsFor(list);
+        Answer unanswered = new Answer(null, null, null);
         List<QuestionResult> results = list.stream().map(q -> {
-            Integer no = selected.get(q.getId());
-            return new QuestionResult(q.getId(), q.getNumber(), no, q.getAnswerNo(), no != null && q.isCorrect(no),
+            Answer a = selected.getOrDefault(q.getId(), unanswered);
+            return new QuestionResult(q.getId(), q.getNumber(), q.getType(), a.selectedNo(), a.answerText(),
+                    q.getAnswerNo(), q.getAnswerText(), q.isCorrect(a.selectedNo(), a.answerText()),
                     q.getExplanation(), statsById.get(q.getId()));
         }).toList();
         Set<Long> correctIds = results.stream().filter(QuestionResult::correct).map(QuestionResult::questionId)

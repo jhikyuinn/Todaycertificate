@@ -28,9 +28,10 @@
   | `INTERNAL_ERROR` | 500 | 예상하지 못한 오류 (내부 메시지는 로그에만 남김) |
 
 - **공통 모양 `QuestionView`:** 풀기 전에 보여주는 문제다. 정답과 해설은 넣지 않는다.
+  `type`은 `MULTIPLE_CHOICE` 또는 `SHORT_ANSWER`(주관식)이고, 주관식은 `choices`가 빈 목록이다.
 
   ```json
-  { "id": 1, "number": 1, "subjectNumber": 1, "subjectName": "소프트웨어 설계",
+  { "id": 1, "number": 1, "type": "MULTIPLE_CHOICE", "subjectNumber": 1, "subjectName": "소프트웨어 설계",
     "content": "문제 본문 (코드는 ``` 로 감쌈)", "choices": ["보기1", "보기2", "보기3", "보기4"], "bookmarked": false }
   ```
 
@@ -107,21 +108,29 @@
 
 | 메서드 · 경로 | 기능 | 요청 | 응답 | 주요 오류 |
 |---|---|---|---|---|
-| `POST /api/questions/{id}/solve` | 공부 모드: 한 문제 풀고 바로 채점 | `{selectedNo}` (1~4) | `{correct, answerNo, explanation, stats}` | 400, 404 |
+| `POST /api/questions/{id}/solve` | 공부 모드: 한 문제 풀고 바로 채점 | 객관식 `{selectedNo}` (1~4), 주관식 `{answerText}` (최대 500자) | `{correct, answerNo, correctAnswerText, explanation, stats}` | 400, 404 |
 | `POST /api/exams/{examId}/attempts` | 시험 시작 | 없음 | 201 `{attemptId, startedAt, timeLimitMinutes, questions: [QuestionView]}` | 404 |
-| `POST /api/attempts/{id}/submit` | 시험 제출과 채점 | `{answers: [{questionId, selectedNo}]}` (안 푼 문제는 빼고 보냄) | 아래 `AttemptResult` | 400, 403, 404, 409 `ALREADY_SUBMITTED` |
+| `POST /api/attempts/{id}/submit` | 시험 제출과 채점 | `{answers: [{questionId, selectedNo 또는 answerText}]}` (안 푼 문제는 빼고 보냄) | 아래 `AttemptResult` | 400, 403, 404, 409 `ALREADY_SUBMITTED` |
 | `GET /api/attempts/{id}` | 제출한 시험 결과 다시 보기 | 없음 | `AttemptResult` (제출 응답과 같은 모양) | 403, 404 (없거나 아직 제출 안 함) |
 
 ```json
 // AttemptResult
 { "attemptId": 3, "averageScore": 78.3, "passed": false,
   "subjects": [{ "number": 1, "name": "소프트웨어 설계", "score": 100, "failed": false }],
-  "questions": [{ "questionId": 10, "number": 1, "selectedNo": null, "answerNo": 2, "correct": false,
-                  "explanation": "...", "stats": null }] }
+  "questions": [{ "questionId": 10, "number": 1, "type": "MULTIPLE_CHOICE", "selectedNo": null, "answerText": null,
+                  "answerNo": 2, "correctAnswerText": null, "correct": false, "explanation": "...", "stats": null },
+                { "questionId": 11, "number": 2, "type": "SHORT_ANSWER", "selectedNo": null, "answerText": "ddl",
+                  "answerNo": null, "correctAnswerText": "DDL|데이터 정의어", "correct": true, "explanation": "...",
+                  "stats": null }] }
 
-// stats (#23): 전체 회원 기준. 5번 미만으로 풀린 문제는 null
+// stats (#23): 전체 회원 기준. 5번 미만으로 풀린 문제는 null. 주관식은 mostChosenWrongNo가 항상 null
 { "solvedCount": 42, "correctRate": 57, "mostChosenWrongNo": 3 }
 ```
+
+- **주관식 답 (#27):**
+  - 내 답은 `answerText`, 정답은 `correctAnswerText`(`|`로 구분한 허용 답 원문)에 담는다. 객관식은 `selectedNo` / `answerNo`.
+  - 문제 유형에 맞는 쪽 하나만 보내야 한다. 객관식에 `answerText`, 주관식에 `selectedNo`, 또는 둘 다 없으면 400 `VALIDATION_FAILED`(`field`는 `selectedNo` 또는 `answerText`)이고 기록을 남기지 않는다. 시험 제출이면 응시도 열린 채로 둔다.
+  - `correctRate`는 저장된 정답 여부가 아니라, 같은 답끼리 묶은 뒤 현재 정답으로 다시 채점해서 낸다.
 
 - **관련:**
   - 테이블: `solve_record`(모드 STUDY / EXAM), `exam_attempt`.

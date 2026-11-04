@@ -10,6 +10,7 @@ import com.todaycertificate.exam.Exam;
 import com.todaycertificate.exam.ExamRepository;
 import com.todaycertificate.exam.Question;
 import com.todaycertificate.exam.QuestionRepository;
+import com.todaycertificate.exam.QuestionType;
 import com.todaycertificate.solve.BookmarkRepository;
 import com.todaycertificate.solve.SolveRecordRepository;
 import java.util.List;
@@ -74,13 +75,23 @@ public class ExamUploadService {
         for (QuestionRow row : parsed.rows()) {
             Subject subject = subjectByNumber.get(row.subjectNumber());
             Question question = existing.remove(row.number());
-            if (question != null) {
-                question.update(subject, row.content(), row.choices(), row.answerNo(), row.explanation());
-                updated++;
-            } else {
-                questions.save(new Question(exam, subject, row.number(), row.content(), row.choices(),
-                        row.answerNo(), row.explanation()));
+            boolean shortAnswer = row.type() == QuestionType.SHORT_ANSWER;
+            if (question == null) {
+                questions.save(shortAnswer
+                        ? new Question(exam, subject, row.number(), row.content(), row.answerText(),
+                                row.exactMatch(), row.explanation())
+                        : new Question(exam, subject, row.number(), row.content(), row.choices(),
+                                row.answerNo(), row.explanation()));
                 created++;
+            } else {
+                // 유형이 바뀌어도 같은 엔티티를 고쳐 쓴다: 풀이 기록·별표가 이 문제를 계속 가리키게
+                if (shortAnswer) {
+                    question.updateShortAnswer(subject, row.content(), row.answerText(), row.exactMatch(),
+                            row.explanation());
+                } else {
+                    question.update(subject, row.content(), row.choices(), row.answerNo(), row.explanation());
+                }
+                updated++;
             }
         }
 

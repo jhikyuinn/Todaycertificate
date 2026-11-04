@@ -109,6 +109,7 @@ export default function AdminUpload() {
         <Muted>• UTF-8로 저장 (엑셀은 'CSV UTF-8')</Muted>
         <Muted>• 쉼표·줄바꿈이 있는 칸은 큰따옴표로 감싸기</Muted>
         <Muted>• 코드는 ``` 로 감싸면 고정폭으로 보여요</Muted>
+        <Muted>• 주관식은 끝에 '유형' 칸 추가(객관식/주관식/주관식-정확히), 보기는 비우고 정답번호 칸에 답을 '|'로 구분</Muted>
         <Muted>• 같은 회차를 다시 올리면 문제번호 기준으로 덮어써요 (풀이 기록 유지)</Muted>
       </View>
     </Card>

@@ -2,6 +2,7 @@ package com.todaycertificate.exam.upload;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.todaycertificate.exam.QuestionType;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -159,6 +160,85 @@ class CsvQuestionParserTest {
                 """);
 
         assertThat(result.errors()).extracting(CsvError::row).containsExactly(1, 2, 3);
+    }
+
+    static final String TYPED_HEADER = "과목번호,문제번호,문제,보기1,보기2,보기3,보기4,정답번호,해설,유형\n";
+
+    @Test
+    void oldNineColumnCsv_stillParses() {
+        CsvParseResult result = parse(HEADER + "1,1,문제,1,2,3,4,1,\n");
+
+        assertThat(result.errors()).isEmpty();
+        assertThat(result.rows().get(0).type()).isEqualTo(QuestionType.MULTIPLE_CHOICE);
+        assertThat(result.rows().get(0).answerText()).isNull();
+    }
+
+    @Test
+    void shortAnswerRow_parsesAnswerText() {
+        CsvParseResult result = parse(TYPED_HEADER + """
+                1,1,문제,1,2,3,4,1,,객관식
+                1,2,정의어는?,,,,, DDL|데이터 정의어 ,,주관식
+                """);
+
+        assertThat(result.errors()).isEmpty();
+        assertThat(result.rows().get(0).type()).isEqualTo(QuestionType.MULTIPLE_CHOICE);
+        QuestionRow row = result.rows().get(1);
+        assertThat(row.type()).isEqualTo(QuestionType.SHORT_ANSWER);
+        assertThat(row.answerText()).isEqualTo("DDL|데이터 정의어");
+        assertThat(row.exactMatch()).isFalse();
+        assertThat(row.answerNo()).isNull();
+        assertThat(row.choices()).isEmpty();
+    }
+
+    @Test
+    void typedHeader_acceptsNineColumnMultipleChoiceRow() {
+        // 유형 헤더가 있어도 객관식 행은 예전처럼 9칸으로 써도 된다 (유형 칸 생략 = 객관식)
+        CsvParseResult result = parse(TYPED_HEADER + """
+                1,1,문제,1,2,3,4,1,
+                1,2,정의어는?,,,,,DDL,,주관식
+                """);
+
+        assertThat(result.errors()).isEmpty();
+        assertThat(result.rows().get(0).type()).isEqualTo(QuestionType.MULTIPLE_CHOICE);
+        assertThat(result.rows().get(1).type()).isEqualTo(QuestionType.SHORT_ANSWER);
+    }
+
+    @Test
+    void shortAnswerExact_setsExactMatch() {
+        CsvParseResult result = parse(TYPED_HEADER + "1,1,출력은?,,,,,Hello,,주관식-정확히\n");
+
+        assertThat(result.errors()).isEmpty();
+        assertThat(result.rows().get(0).type()).isEqualTo(QuestionType.SHORT_ANSWER);
+        assertThat(result.rows().get(0).exactMatch()).isTrue();
+    }
+
+    @Test
+    void shortAnswerWithChoices_isError() {
+        CsvParseResult result = parse(TYPED_HEADER + "1,1,문제,A,,,,DDL,,주관식\n");
+
+        assertThat(result.errors()).singleElement()
+                .satisfies(e -> assertThat(e.message()).isEqualTo("주관식 문제는 보기 칸을 비워 주세요."));
+    }
+
+    @Test
+    void emptyAlternative_isError() {
+        CsvParseResult result = parse(TYPED_HEADER + """
+                1,1,문제,,,,,A||B,,주관식
+                1,2,문제,,,,,A|,,주관식
+                1,3,문제,,,,,,,주관식
+                """);
+
+        assertThat(result.errors()).extracting(CsvError::message)
+                .containsExactly("주관식 정답이 비어 있습니다.", "주관식 정답이 비어 있습니다.", "주관식 정답이 비어 있습니다.");
+    }
+
+    @Test
+    void unknownType_isError() {
+        CsvParseResult result = parse(TYPED_HEADER + "1,1,문제,1,2,3,4,1,,서술형\n");
+
+        assertThat(result.errors()).singleElement()
+                .satisfies(e -> assertThat(e.message())
+                        .isEqualTo("'유형'은 객관식, 주관식, 주관식-정확히 중 하나여야 합니다."));
     }
 
     @Test

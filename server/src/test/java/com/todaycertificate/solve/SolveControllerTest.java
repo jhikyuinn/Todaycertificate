@@ -97,6 +97,59 @@ class SolveControllerTest {
                 .andExpect(jsonPath("$.stats.mostChosenWrongNo").value(3));
     }
 
+    @Test
+    void solve_shortAnswer_correctIgnoringCase() throws Exception {
+        Long sa = shortAnswerQuestion();
+        solve(sa, "{\"answerText\":\"ddl\"}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.correct").value(true))
+                .andExpect(jsonPath("$.answerNo").doesNotExist())
+                .andExpect(jsonPath("$.correctAnswerText").value("DDL"));
+        assertThat(jdbc.queryForObject("SELECT answer_text FROM solve_record", String.class)).isEqualTo("ddl");
+    }
+
+    @Test
+    void solve_shortAnswerWithSelectedNo_returns400AndSavesNothing() throws Exception {
+        solve(shortAnswerQuestion(), "{\"selectedNo\":1}")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.details[0].field").value("selectedNo"));
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM solve_record", Integer.class)).isZero();
+    }
+
+    @Test
+    void solve_multipleChoiceWithAnswerText_returns400() throws Exception {
+        solve(questionId, "{\"selectedNo\":1,\"answerText\":\"a\"}")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details[0].field").value("answerText"));
+        solve(questionId, "{}")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details[0].field").value("selectedNo"));
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM solve_record", Integer.class)).isZero();
+    }
+
+    @Test
+    void stats_shortAnswer_noMostChosenWrong() throws Exception {
+        Long sa = shortAnswerQuestion();
+        Long member = fixtures.memberId("user1");
+        for (String text : new String[] {"DDL", "dml", "dcl", "dml"}) {
+            jdbc.update("""
+                    INSERT INTO solve_record (member_id, question_id, answer_text, correct, mode, solved_at)
+                    VALUES (?, ?, ?, false, 'STUDY', now())""", member, sa, text);
+        }
+        solve(sa, "{\"answerText\":\"ddl\"}") // 정답 2건 / 5건. 저장된 correct가 아니라 현재 허용 답으로 다시 채점
+                .andExpect(jsonPath("$.stats.solvedCount").value(5))
+                .andExpect(jsonPath("$.stats.correctRate").value(40))
+                .andExpect(jsonPath("$.stats.mostChosenWrongNo").doesNotExist());
+    }
+
+    /** seed의 두 번째 문제(2과목)를 정답 "DDL"인 주관식으로 바꾼다. */
+    Long shortAnswerQuestion() {
+        Long id = jdbc.queryForObject("SELECT id FROM question WHERE number = 2", Long.class);
+        fixtures.makeShortAnswer(id, "DDL");
+        return id;
+    }
+
     /** 다른 회원들이 이 문제에서 고른 보기라고 보고 기록을 미리 넣는다. */
     void priorChoices(int... selected) {
         Long member = fixtures.memberId("user1");

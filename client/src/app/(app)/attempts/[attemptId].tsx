@@ -6,6 +6,7 @@ import { IconTile, Ionicons } from '@/components/Icon';
 import { RichText } from '@/components/RichText';
 import { Badge, Button, Card, colors, ErrorBox, H2, Loading, Muted, Screen } from '@/components/ui';
 import { errorMessage } from '@/lib/errors';
+import { formatAccepted } from '@/lib/format';
 import { useApi, useIsWide } from '@/lib/hooks';
 import { AttemptResult, QuestionResult } from '@/lib/types';
 
@@ -115,7 +116,9 @@ function ResultRow({ q }: { q: QuestionResult }) {
         <Ionicons name={q.correct ? 'checkmark-circle' : 'close-circle'} size={22} color={q.correct ? colors.correct : colors.wrong} />
         <Text style={{ fontWeight: '800', color: colors.text, width: 40 }}>{q.number}번</Text>
         <Text style={{ flex: 1, color: colors.sub }}>
-          내 답 {q.selectedNo ?? '안 풂'} · 정답 {q.answerNo}
+          {q.type === 'SHORT_ANSWER'
+            ? `내 답 ${q.answerText ?? '안 풂'} · 정답 ${formatAccepted(q.correctAnswerText ?? '')}`
+            : `내 답 ${q.selectedNo ?? '안 풂'} · 정답 ${q.answerNo}`}
         </Text>
         <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={18} color={colors.sub} />
       </Pressable>

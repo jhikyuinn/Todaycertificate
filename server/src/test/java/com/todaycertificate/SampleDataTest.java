@@ -19,7 +19,7 @@ class SampleDataTest {
 
     @Test
     void sampleData_isLoaded() {
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM question", Integer.class)).isEqualTo(14);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM question", Integer.class)).isEqualTo(19);
     }
 
     @Test

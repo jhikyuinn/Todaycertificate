@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { api } from '@/lib/api';
 import { errorMessage } from '@/lib/errors';
+import { formatAccepted } from '@/lib/format';
 import { useIsWide } from '@/lib/hooks';
 import { useKeyboard } from '@/lib/keyboard';
 import { QuestionView, SolveResult } from '@/lib/types';
@@ -35,7 +36,8 @@ export function StudySession({
   const wide = useIsWide();
   const [questions, setQuestions] = useState(initial);
   const [index, setIndex] = useState(0);
-  const [results, setResults] = useState<Record<number, SolveResult & { selectedNo: number }>>({});
+  const [results, setResults] = useState<Record<number, SolveResult & { selectedNo: number | null; answerText: string | null }>>({});
+  const [draft, setDraft] = useState(''); // 주관식 입력 중인 답. 문제를 옮기면 비운다
   const [error, setError] = useState<string | null>(null);
   const [gridOpen, setGridOpen] = useState(false);
   const [finished, setFinished] = useState(false);
@@ -45,19 +47,23 @@ export function StudySession({
   const solvedCount = Object.keys(results).length;
   const correctCount = Object.values(results).filter((r) => r.correct).length;
 
-  const select = async (no: number) => {
+  // 객관식은 selectedNo, 주관식은 answerText 하나만 보낸다 (서버가 유형과 안 맞으면 400)
+  const solve = async (selectedNo: number | null, answerText: string | null) => {
     if (!q || result) return;
     setError(null);
     try {
-      const r = await api.post<SolveResult>(`/api/questions/${q.id}/solve`, { selectedNo: no });
-      setResults((prev) => ({ ...prev, [q.id]: { ...r, selectedNo: no } }));
+      const r = await api.post<SolveResult>(`/api/questions/${q.id}/solve`, selectedNo != null ? { selectedNo } : { answerText });
+      setResults((prev) => ({ ...prev, [q.id]: { ...r, selectedNo, answerText } }));
     } catch (e) {
       setError(errorMessage(e));
     }
   };
+  const select = (no: number) => q?.type === 'MULTIPLE_CHOICE' && solve(no, null);
+  const submitText = () => draft.trim() && solve(null, draft);
 
   const move = (to: number) => {
     setError(null);
+    setDraft('');
     if (to >= questions.length) setFinished(true);
     else setIndex(Math.max(0, to));
   };
@@ -121,12 +127,16 @@ export function StudySession({
           color={result.correct ? colors.correct : colors.wrong}
         />
         <Text style={[s.verdict, { color: result.correct ? colors.correct : colors.wrong }]}>
-          {result.correct ? '정답이에요!' : `아쉬워요. 정답은 ${result.answerNo}번`}
+          {result.correct
+            ? '정답이에요!'
+            : `아쉬워요. 정답은 ${result.answerNo != null ? `${result.answerNo}번` : formatAccepted(result.correctAnswerText ?? '')}`}
         </Text>
       </View>
       {result.explanation ? <RichText text={result.explanation} /> : <Muted>등록된 해설이 없어요</Muted>}
     </Card>
   );
+  // 주관식은 풀기 전에 해설 자리에 확인 버튼을 둔다 (Enter로도 제출)
+  const below = explanation || (q.type === 'SHORT_ANSWER' && <Button title="답 확인" onPress={submitText} disabled={!draft.trim()} />);
 
   const card = (
     <QuestionCard
@@ -134,6 +144,11 @@ export function StudySession({
       selectedNo={result?.selectedNo ?? null}
       onSelect={select}
       revealedAnswerNo={result?.answerNo}
+      answerText={result ? result.answerText ?? '' : draft}
+      onChangeText={setDraft}
+      onSubmitAnswer={submitText}
+      revealedAnswerText={result?.correctAnswerText}
+      correct={result?.correct}
       onToggleBookmark={toggleBookmark}
       stats={result?.stats}
       label={`${index + 1} / ${questions.length}`}
@@ -155,7 +170,7 @@ export function StudySession({
             {progress}
             {error && <ErrorBox message={error} />}
             <Card style={{ padding: 28 }}>{card}</Card>
-            {explanation}
+            {below}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <Button title="← 이전" variant="secondary" onPress={() => move(index - 1)} disabled={index === 0} />
               <Button
@@ -210,7 +225,7 @@ export function StudySession({
       {error && <ErrorBox message={error} />}
       {card}
       <View style={{ height: 14 }} />
-      {explanation}
+      {below}
       <BottomSheet visible={gridOpen} onClose={() => setGridOpen(false)} title={`정답 ${correctCount} · 오답 ${solvedCount - correctCount}`}>
         <NumberGrid
           cells={cells}
