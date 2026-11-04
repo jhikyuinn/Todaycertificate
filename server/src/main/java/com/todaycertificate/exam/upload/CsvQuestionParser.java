@@ -21,7 +21,7 @@ import org.apache.commons.csv.CSVRecord;
 /**
  * 기출 CSV를 읽고 검증한다. DB나 Spring에 의존하지 않는 순수 코드라 단위 테스트가 쉽다.
  * 형식: 과목번호,문제번호,문제,보기1,보기2,보기3,보기4,정답번호,해설[,유형]
- * 유형 칸은 선택이다(없거나 비면 객관식). 주관식은 보기를 비우고 정답번호 칸에 허용 답을 '|'로 구분해 쓴다.
+ * 유형 칸은 선택이다(헤더에 없거나, 행에서 생략하거나, 비면 객관식). 주관식은 보기를 비우고 정답번호 칸에 허용 답을 '|'로 구분해 쓴다.
  */
 public final class CsvQuestionParser {
 
@@ -85,11 +85,13 @@ public final class CsvQuestionParser {
 
     private static QuestionRow toRow(CSVRecord record, int columns, Set<Integer> subjectNumbers,
                                      Set<Integer> seenNumbers, List<String> errors) {
-        if (record.size() != columns) {
+        // 유형 헤더가 있어도 객관식 행은 예전처럼 9칸(유형 생략)으로 쓸 수 있다
+        boolean typeOmitted = columns == TYPED_HEADER.size() && record.size() == HEADER.size();
+        if (record.size() != columns && !typeOmitted) {
             errors.add("열이 " + columns + "개여야 합니다. (현재 " + record.size() + "개)");
             return null;
         }
-        String typeCell = columns > HEADER.size() ? record.get(9).strip() : "";
+        String typeCell = record.size() > HEADER.size() ? record.get(9).strip() : "";
         if (!List.of("", "객관식", "주관식", "주관식-정확히").contains(typeCell)) {
             errors.add("'유형'은 객관식, 주관식, 주관식-정확히 중 하나여야 합니다.");
             return null;

@@ -191,6 +191,19 @@ class CsvQuestionParserTest {
     }
 
     @Test
+    void typedHeader_acceptsNineColumnMultipleChoiceRow() {
+        // 유형 헤더가 있어도 객관식 행은 예전처럼 9칸으로 써도 된다 (유형 칸 생략 = 객관식)
+        CsvParseResult result = parse(TYPED_HEADER + """
+                1,1,문제,1,2,3,4,1,
+                1,2,정의어는?,,,,,DDL,,주관식
+                """);
+
+        assertThat(result.errors()).isEmpty();
+        assertThat(result.rows().get(0).type()).isEqualTo(QuestionType.MULTIPLE_CHOICE);
+        assertThat(result.rows().get(1).type()).isEqualTo(QuestionType.SHORT_ANSWER);
+    }
+
+    @Test
     void shortAnswerExact_setsExactMatch() {
         CsvParseResult result = parse(TYPED_HEADER + "1,1,출력은?,,,,,Hello,,주관식-정확히\n");
 
