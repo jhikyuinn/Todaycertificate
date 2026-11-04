@@ -106,3 +106,13 @@ export type SubjectReport = {
 };
 
 export type UploadResult = { examId: number; created: number; updated: number; deleted: number };
+
+/** 점수 이력 한 줄 (#32). 제출할 때 저장한 점수다. */
+export type HistoryItem = {
+  attemptId: number;
+  examYear: number;
+  examRound: number;
+  submittedAt: string;
+  averageScore: number;
+  passed: boolean;
+};

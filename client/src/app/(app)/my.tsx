@@ -9,7 +9,7 @@ import { useAuth } from '@/lib/auth';
 import { useApi, useIsWide } from '@/lib/hooks';
 import { NoteItem } from '@/lib/types';
 
-/** 내 학습: 오답노트·별표로 가는 입구, 과락 위험 리포트, (운영자에게만) 운영자 화면 입구. */
+/** 내 학습: 오답노트·별표·점수 이력으로 가는 입구, 과락 위험 리포트, (운영자에게만) 운영자 화면 입구. */
 export default function MyScreen() {
   const wide = useIsWide();
   const { me, logout } = useAuth();
@@ -49,11 +49,23 @@ export default function MyScreen() {
     </View>
   );
 
+  const historyCard = (
+    <Card onPress={() => router.push('/history')} style={s.admin}>
+      <IconTile name="trending-up" tint={colors.mint} soft={colors.mintSoft} />
+      <View style={{ flex: 1 }}>
+        <Text style={s.tileTitle}>점수 이력</Text>
+        <Muted>시험 모드 점수 변화</Muted>
+      </View>
+      <Ionicons name="chevron-forward" size={20} color={colors.sub} />
+    </Card>
+  );
+
   return (
     <Screen>
       <Title sub={`${me?.loginId} · ${me?.role === 'ADMIN' ? '운영자' : '학습자'}`}>{me?.name}님의 학습</Title>
       <View style={{ gap: 16 }}>
         {tiles}
+        {historyCard}
         <SubjectReportCard key={focusKey} />
         {me?.role === 'ADMIN' && (
           <Card onPress={() => router.push('/admin')} style={s.admin}>

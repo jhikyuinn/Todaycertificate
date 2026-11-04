@@ -35,7 +35,7 @@ const NAV: NavItem[] = [
     icon: 'bookmarks',
     tint: colors.warn,
     soft: colors.butterSoft,
-    match: (p) => p === '/my' || p.startsWith('/notes'),
+    match: (p) => p === '/my' || p.startsWith('/notes') || p === '/history',
   },
 ];
 const ADMIN_NAV: NavItem = {
