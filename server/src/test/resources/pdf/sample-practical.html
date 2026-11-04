@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>예시 실기 시험지</title>
+<!-- 테스트용으로 직접 만든 실기(주관식) 문제. 실제 기출이 아니다.
+     브라우저에서 인쇄한 실기 PDF 형식을 흉내 낸다: "문제 N", 태그 줄, 본문(코드 포함), "정답 및 해설", 정답, "[해설]", 해설.
+     머리글·바닥글(날짜, 문서 제목, 주소, 쪽수)을 켜고 python -m http.server로 열어 인쇄해서 그 잡음도 들어 있다. -->
+<style>
+  body { font-family: "Malgun Gothic", sans-serif; font-size: 12pt; margin: 1.5cm; }
+  .q { page-break-inside: auto; margin-bottom: 2em; }
+  .no { font-weight: bold; font-size: 14pt; }
+  .tag { color: #888; font-size: 9pt; }
+  pre { font-family: Consolas, monospace; background: #f4f4f4; padding: 8px; }
+</style>
+</head>
+<body>
+<h1>오늘의자격증 실기 예시 시험지</h1>
+<p>총 3문항 · 주관식 · 정답·해설 포함</p>
+
+<div class="q">
+<p class="no">문제 1</p>
+<p class="tag">예시-1</p>
+<p>다음 Python 코드를 실행하면 출력되는 값을 적으시오.</p>
+<pre>def total(items):
+    result = 0
+    for x in items:
+        if x % 2 == 0:
+            result += x
+    return result
+print(total([1, 2, 3, 4]))</pre>
+<p><b>정답 및 해설</b></p>
+<p>6</p>
+<p>[해설]</p>
+<p>짝수인 2와 4만 더하므로 6이다.</p>
+</div>
+
+<div class="q">
+<p class="no">문제 2</p>
+<p class="tag">예시-1</p>
+<p>테이블을 만들거나 구조를 바꾸는 SQL 명령의 분류를 영문 약어로 적으시오.</p>
+<p><b>정답 및 해설</b></p>
+<p>DDL</p>
+<p>[해설]</p>
+<p>CREATE, ALTER, DROP처럼 구조를 정의하는 명령은 데이터 정의어(DDL)이다.</p>
+</div>
+
+<div class="q">
+<p class="no">문제 3</p>
+<p class="tag">예시-1</p>
+<p>인스턴스를 하나만 만들도록 보장하는 디자인 패턴의 이름을 적으시오.</p>
+<p><b>정답 및 해설</b></p>
+<p>싱글톤</p>
+<p>[해설]</p>
+<p>생성자를 감추고 하나뿐인 인스턴스를 돌려주는 메서드를 둔다.</p>
+</div>
+</body>
+</html>

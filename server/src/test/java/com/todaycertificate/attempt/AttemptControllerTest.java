@@ -83,6 +83,7 @@ class AttemptControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.averageScore").value(50.0))
                 .andExpect(jsonPath("$.passed").value(false))
+                .andExpect(jsonPath("$.failScore").value(40))
                 .andExpect(jsonPath("$.subjects[0].score").value(50))
                 .andExpect(jsonPath("$.subjects[1].failed").value(false))
                 .andExpect(jsonPath("$.questions[3].selectedNo").doesNotExist())

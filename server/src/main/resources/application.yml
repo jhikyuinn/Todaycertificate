@@ -12,6 +12,11 @@ spring:
     open-in-view: false
     hibernate:
       ddl-auto: validate # 테이블은 Flyway가 만들고, JPA는 엔티티와 맞는지만 검사
+  servlet:
+    multipart:
+      # Spring 기본값(파일 1MB, 요청 10MB)은 그림이 있는 기출 PDF에 작다
+      max-file-size: 20MB
+      max-request-size: 30MB # 문제 PDF + 해설 PDF를 한 요청으로 보낼 때
   flyway:
     # db/sample은 샘플 데이터. 테스트에서는 src/test/resources/config/application.yml이 뺀다.
     locations: classpath:db/migration,classpath:db/sample

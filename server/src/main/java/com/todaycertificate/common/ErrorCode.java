@@ -7,6 +7,7 @@ public enum ErrorCode {
 
     VALIDATION_FAILED(HttpStatus.BAD_REQUEST, "입력값이 올바르지 않습니다."),
     CSV_INVALID(HttpStatus.BAD_REQUEST, "CSV 파일에 오류가 있습니다."),
+    PDF_INVALID(HttpStatus.BAD_REQUEST, "PDF 파일을 읽을 수 없습니다."),
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."),
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "아이디 또는 비밀번호가 올바르지 않습니다."),
     FORBIDDEN(HttpStatus.FORBIDDEN, "권한이 없습니다."),

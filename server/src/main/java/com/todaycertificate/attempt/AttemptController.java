@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -45,6 +46,11 @@ public class AttemptController {
                                         Authentication auth) {
         return service.submit(CurrentMember.id(auth), id, request.answers().stream()
                 .map(a -> new AttemptService.Answer(a.questionId(), a.selectedNo(), a.answerText())).toList());
+    }
+
+    @GetMapping("/api/me/attempts")
+    List<AttemptService.HistoryItem> history(@RequestParam Long certificateId, Authentication auth) {
+        return service.history(CurrentMember.id(auth), certificateId);
     }
 
     @GetMapping("/api/attempts/{id}")

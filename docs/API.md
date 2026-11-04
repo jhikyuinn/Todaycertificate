@@ -70,18 +70,20 @@
 | `POST /api/admin/certificates/{id}/schedules` | 시험 일정 추가 | `{year, round, registrationStart, registrationEnd, examDate}` (접수 시작 ≤ 접수 마감 ≤ 시험일) | 201 `{id}` | 400, 404 |
 | `DELETE /api/admin/schedules/{id}` | 시험 일정 삭제 (이 일정을 목표로 둔 회원의 목표는 해제) | 없음 | 204 | 404 |
 | `POST /api/admin/certificates/{id}/exams` | 회차 기출 CSV 업로드 | multipart: `year`, `round`, `file` (CSV 헤더: `과목번호,문제번호,문제,보기1,보기2,보기3,보기4,정답번호,해설`) | `{examId, created, updated, deleted}` | 400 `CSV_INVALID` (`details: [{row, message}]`), 404 |
+| `POST /api/admin/certificates/{id}/exams/pdf-preview` | 기출 PDF 미리보기 (#41). **저장하지 않는다** | multipart: `file` (문제 PDF, 필수), `explanationFile` (해설 PDF, 선택) | `{rows: [{subjectNumber, number, type, content, choices, answerNo, answerText, explanation, warnings}]}` | 400 `PDF_INVALID` (`details: [이유]`: 열 수 없음 / 암호 / 글자 없는 스캔본), 404 |
 
 - **관련:**
   - 테이블: `certificate`, `subject`, `exam_schedule`, `exam`, `question`. 업로드는 `solve_record`, `bookmark`도 건드린다.
-  - 코드: `CsvQuestionParser`(#5).
+  - 코드: `CsvQuestionParser`(#5), `PdfTextExtractor`·`PdfQuestionParser`(#40).
   - 화면: #12 운영자 화면(데모 영상으로 공개).
 - **설계 포인트:**
   - 업로드 전체가 트랜잭션 하나다. CSV에 오류가 한 줄이라도 있으면 아무것도 저장하지 않는다.
   - 다시 올리면 **문제번호 기준으로 덮어써서** 문제 ID가 유지된다. 그래서 사용자의 풀이 기록과 별표가 남는다.
   - 새 파일에서 빠진 번호는 그 문제의 풀이 기록, 별표, 문제 순서로 지운다(외래키 때문).
+  - 업로드 한도는 파일 하나 20MB, 요청 전체 30MB(`spring.servlet.multipart`). Spring 기본값(1MB)은 그림이 있는 PDF에 작다. 넘으면 400 `VALIDATION_FAILED` "파일이 너무 큽니다 (최대 20MB)."
+  - PDF 형식 두 가지: 필기(`1.` 문제 + ①~④ 보기, 2단 편집은 단별로 읽음)와 실기(`문제 N` → `정답 및 해설` → `[해설]`, `type: SHORT_ANSWER`, 정답은 `answerText`). 실기는 코드처럼 보이는 줄이 2줄 이상 이어지면 줄바꿈·들여쓰기를 살려 ``` 로 감싸고, 브라우저 인쇄 머리글·바닥글(날짜, 문서 제목, 주소, 쪽수)을 뺀다. 과목 줄이 없어서 과목번호는 1이다.
+  - PDF 미리보기는 DB에 쓰지 않는다. 형식이 틀린 문제도 버리지 않고 `warnings`에 이유를 담아 행으로 돌려준다. 그 자격증에 없는 과목번호는 `"등록되지 않은 과목번호입니다: N"` 경고가 붙는다.
 - **개선·확장 후보:**
-  - 업로드 파일 크기는 Spring 기본 제한을 그대로 쓴다. 따로 설정하지 않았다. 큰 회차 파일이 실패하면 `spring.servlet.multipart.max-file-size`를 설정한다.
-  - 저장하지 않고 검사만 하는 "미리보기" 업로드가 있으면 운영자가 편하다.
   - 자격증 삭제, 회차 삭제, 운영자용 회차 목록 API가 없다.
   - 업로드 이력(누가, 언제, 몇 문제)을 남기지 않는다.
 
@@ -112,10 +114,11 @@
 | `POST /api/exams/{examId}/attempts` | 시험 시작 | 없음 | 201 `{attemptId, startedAt, timeLimitMinutes, questions: [QuestionView]}` | 404 |
 | `POST /api/attempts/{id}/submit` | 시험 제출과 채점 | `{answers: [{questionId, selectedNo 또는 answerText}]}` (안 푼 문제는 빼고 보냄) | 아래 `AttemptResult` | 400, 403, 404, 409 `ALREADY_SUBMITTED` |
 | `GET /api/attempts/{id}` | 제출한 시험 결과 다시 보기 | 없음 | `AttemptResult` (제출 응답과 같은 모양) | 403, 404 (없거나 아직 제출 안 함) |
+| `GET /api/me/attempts?certificateId={id}` | 내 시험 점수 이력 (#32) | `certificateId` 필수 | `[{attemptId, examYear, examRound, submittedAt, averageScore, passed}]` (제출 오래된 순) | 404 (자격증 없음) |
 
 ```json
 // AttemptResult
-{ "attemptId": 3, "averageScore": 78.3, "passed": false,
+{ "attemptId": 3, "averageScore": 78.3, "passed": false, "failScore": 40,
   "subjects": [{ "number": 1, "name": "소프트웨어 설계", "score": 100, "failed": false }],
   "questions": [{ "questionId": 10, "number": 1, "type": "MULTIPLE_CHOICE", "selectedNo": null, "answerText": null,
                   "answerNo": 2, "correctAnswerText": null, "correct": false, "explanation": "...", "stats": null },
@@ -131,6 +134,11 @@
   - 내 답은 `answerText`, 정답은 `correctAnswerText`(`|`로 구분한 허용 답 원문)에 담는다. 객관식은 `selectedNo` / `answerNo`.
   - 문제 유형에 맞는 쪽 하나만 보내야 한다. 객관식에 `answerText`, 주관식에 `selectedNo`, 또는 둘 다 없으면 400 `VALIDATION_FAILED`(`field`는 `selectedNo` 또는 `answerText`)이고 기록을 남기지 않는다. 시험 제출이면 응시도 열린 채로 둔다.
   - `correctRate`는 저장된 정답 여부가 아니라, 같은 답끼리 묶은 뒤 현재 정답으로 다시 채점해서 낸다.
+
+- **점수 이력 (#32):**
+  - 내가 제출한 시험만 나온다. 시작만 하고 제출하지 않은 응시와 다른 회원의 응시는 빠진다.
+  - 점수는 제출할 때 `exam_attempt`에 저장한 값이다. 다시 채점하지 않는다.
+  - 회차(`examYear`, `examRound`)는 exam을 fetch join으로 함께 읽어서 쿼리 한 번으로 가져온다.
 
 - **관련:**
   - 테이블: `solve_record`(모드 STUDY / EXAM), `exam_attempt`.
@@ -148,8 +156,7 @@
 - **개선·확장 후보:**
   - 제한시간을 서버가 강제하지 않는다. 클라이언트 타이머의 자동 제출에 맡긴다. 필요하면 제출할 때 `startedAt + 제한시간`과 비교한다.
   - 제출하지 않고 떠난 응시가 계속 남는다. 정리 작업이나 "이어서 풀기"가 없다.
-  - 운영자가 정답을 고쳐서 다시 올리면, 결과 다시 보기의 점수가 제출 당시 점수와 달라질 수 있다. `exam_attempt`에 저장된 점수와 다시 계산한 점수가 다를 수 있다는 뜻이다.
-  - 내 시험 점수 이력 목록이 없다(아이디어 #32).
+  - 운영자가 정답을 고쳐서 다시 올리면, 결과 다시 보기의 점수가 제출 당시 점수와 달라질 수 있다. `exam_attempt`에 저장된 점수와 다시 계산한 점수가 다를 수 있다는 뜻이다. 점수 이력은 저장된 점수를 쓰므로, 이때 이력과 결과 화면의 점수가 다르게 보일 수 있다.
   - `stats`는 요청마다 집계한다. 기록이 아주 많아지면 집계 테이블이나 캐시가 필요하다.
 
 ## 5. 별표 · 오답노트 (#15)
