@@ -116,3 +116,14 @@ export type HistoryItem = {
   averageScore: number;
   passed: boolean;
 };
+
+/** PDF 미리보기 한 줄 (#41). 못 찾은 값: subjectNumber 0, answerNo·explanation null. 저장 전 화면에서 고친다. */
+export type PreviewRow = {
+  subjectNumber: number;
+  number: number;
+  content: string;
+  choices: string[];
+  answerNo: number | null;
+  explanation: string | null;
+  warnings: string[];
+};
