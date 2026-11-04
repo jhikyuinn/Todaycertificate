@@ -39,6 +39,17 @@ class PdfQuestionParserTest {
     }
 
     @Test
+    void twoColumnPdf_readsLeftColumnThenRight() throws IOException {
+        // 같은 문제를 2단으로 배치한 PDF. 위→아래로만 읽으면 두 단의 줄이 섞여 문제가 합쳐진다.
+        List<PreviewRow> rows = PdfQuestionParser.parse(PdfTextExtractor.extract(resource("sample-exam-2col.pdf")), null);
+
+        assertThat(rows).extracting(PreviewRow::number).containsExactly(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+        assertThat(rows).extracting(PreviewRow::answerNo).containsExactly(2, 1, 3, 2, 4, 2, 1, 3, 4, 2);
+        assertThat(rows).allSatisfy(row -> assertThat(row.warnings()).isEmpty());
+        assertThat(rows.get(0).choices()).containsExactly("큐", "스택", "트리", "그래프");
+    }
+
+    @Test
     void answerTable_fillsAnswers() throws IOException {
         List<PreviewRow> rows = PdfQuestionParser.parse(text("answer-table.txt"), null);
 
