@@ -136,14 +136,28 @@ export default function AdminUpload() {
       {Platform.OS !== 'web' ? (
         <Muted>파일 업로드는 웹에서만 돼요</Muted>
       ) : mode === 'csv' ? (
-        <FilePicker file={file} label="눌러서 CSV 파일 고르기" onPress={async () => setFile(await pickFile('.csv,text/csv'))} />
+        <FilePicker
+          file={file}
+          label="눌러서 CSV 파일 고르기"
+          onPress={async () => setFile(await pickFile('.csv,text/csv'))}
+          onClear={() => setFile(null)}
+        />
       ) : (
         <View style={{ gap: 10 }}>
-          <FilePicker file={pdf} label="문제 PDF 고르기" onPress={async () => setPdf(await pickFile('.pdf,application/pdf'))} />
+          <FilePicker
+            file={pdf}
+            label="문제 PDF 고르기"
+            onPress={async () => setPdf(await pickFile('.pdf,application/pdf'))}
+            onClear={() => {
+              setPdf(null);
+              setRows(null); // 뺀 파일의 미리보기가 남아 있다가 저장되지 않게
+            }}
+          />
           <FilePicker
             file={explanationPdf}
             label="해설 PDF 고르기 (선택)"
             onPress={async () => setExplanationPdf(await pickFile('.pdf,application/pdf'))}
+            onClear={() => setExplanationPdf(null)}
           />
         </View>
       )}
@@ -245,13 +259,27 @@ export default function AdminUpload() {
   );
 }
 
-function FilePicker({ file, label, onPress }: { file: File | null; label: string; onPress: () => void }) {
+function FilePicker({
+  file,
+  label,
+  onPress,
+  onClear,
+}: {
+  file: File | null;
+  label: string;
+  onPress: () => void;
+  onClear: () => void;
+}) {
   return (
-    <Pressable onPress={onPress} style={s.drop}>
-      <Ionicons name={file ? 'document-attach' : 'cloud-upload-outline'} size={28} color={colors.primary} />
-      <Text style={{ fontWeight: '700', color: colors.text }}>{file ? file.name : label}</Text>
-      {file && <Muted>{(file.size / 1024).toFixed(1)}KB · 다시 누르면 바꿀 수 있어요</Muted>}
-    </Pressable>
+    <View>
+      <Pressable onPress={onPress} style={s.drop}>
+        <Ionicons name={file ? 'document-attach' : 'cloud-upload-outline'} size={28} color={colors.primary} />
+        <Text style={{ fontWeight: '700', color: colors.text }}>{file ? file.name : label}</Text>
+        {file && <Muted>{(file.size / 1024).toFixed(1)}KB · 다시 누르면 바꿀 수 있어요</Muted>}
+      </Pressable>
+      {/* 빼기 버튼은 고르기 영역 밖에 둔다 (안에 두면 누를 때 파일 선택 창도 같이 열릴 수 있다) */}
+      {file && <Button title="파일 빼기" variant="ghost" onPress={onClear} style={{ alignSelf: 'flex-end' }} />}
+    </View>
   );
 }
 
