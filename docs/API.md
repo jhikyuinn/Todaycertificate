@@ -70,18 +70,19 @@
 | `POST /api/admin/certificates/{id}/schedules` | 시험 일정 추가 | `{year, round, registrationStart, registrationEnd, examDate}` (접수 시작 ≤ 접수 마감 ≤ 시험일) | 201 `{id}` | 400, 404 |
 | `DELETE /api/admin/schedules/{id}` | 시험 일정 삭제 (이 일정을 목표로 둔 회원의 목표는 해제) | 없음 | 204 | 404 |
 | `POST /api/admin/certificates/{id}/exams` | 회차 기출 CSV 업로드 | multipart: `year`, `round`, `file` (CSV 헤더: `과목번호,문제번호,문제,보기1,보기2,보기3,보기4,정답번호,해설`) | `{examId, created, updated, deleted}` | 400 `CSV_INVALID` (`details: [{row, message}]`), 404 |
+| `POST /api/admin/certificates/{id}/exams/pdf-preview` | 기출 PDF 미리보기 (#41). **저장하지 않는다** | multipart: `file` (문제 PDF, 필수), `explanationFile` (해설 PDF, 선택) | `{rows: [{subjectNumber, number, content, choices, answerNo, explanation, warnings}]}` | 400 `PDF_INVALID` (`details: [이유]`: 열 수 없음 / 암호 / 글자 없는 스캔본), 404 |
 
 - **관련:**
   - 테이블: `certificate`, `subject`, `exam_schedule`, `exam`, `question`. 업로드는 `solve_record`, `bookmark`도 건드린다.
-  - 코드: `CsvQuestionParser`(#5).
+  - 코드: `CsvQuestionParser`(#5), `PdfTextExtractor`·`PdfQuestionParser`(#40).
   - 화면: #12 운영자 화면(데모 영상으로 공개).
 - **설계 포인트:**
   - 업로드 전체가 트랜잭션 하나다. CSV에 오류가 한 줄이라도 있으면 아무것도 저장하지 않는다.
   - 다시 올리면 **문제번호 기준으로 덮어써서** 문제 ID가 유지된다. 그래서 사용자의 풀이 기록과 별표가 남는다.
   - 새 파일에서 빠진 번호는 그 문제의 풀이 기록, 별표, 문제 순서로 지운다(외래키 때문).
+  - PDF 미리보기는 DB에 쓰지 않는다. 형식이 틀린 문제도 버리지 않고 `warnings`에 이유를 담아 행으로 돌려준다. 그 자격증에 없는 과목번호는 `"등록되지 않은 과목번호입니다: N"` 경고가 붙는다.
 - **개선·확장 후보:**
   - 업로드 파일 크기는 Spring 기본 제한을 그대로 쓴다. 따로 설정하지 않았다. 큰 회차 파일이 실패하면 `spring.servlet.multipart.max-file-size`를 설정한다.
-  - 저장하지 않고 검사만 하는 "미리보기" 업로드가 있으면 운영자가 편하다.
   - 자격증 삭제, 회차 삭제, 운영자용 회차 목록 API가 없다.
   - 업로드 이력(누가, 언제, 몇 문제)을 남기지 않는다.
 
