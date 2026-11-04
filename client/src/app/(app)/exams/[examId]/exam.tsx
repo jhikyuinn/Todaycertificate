@@ -163,7 +163,7 @@ export default function ExamScreen() {
             <NumberGrid cells={cells} current={index} onJump={move} />
             <Button title="제출하기" onPress={() => setConfirmOpen(true)} />
             <View style={s.keys}>
-              <Muted>⌨ 1~4 보기 선택 (다시 누르면 바뀜)</Muted>
+              {q.type !== 'SHORT_ANSWER' && <Muted>⌨ 1~4 보기 선택 (다시 누르면 바뀜)</Muted>}
               <Muted>⌨ ← → 이전·다음</Muted>
             </View>
           </Card>

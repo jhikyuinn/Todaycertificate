@@ -70,8 +70,8 @@ public class AttemptService {
                                  QuestionStatsService.Stats stats) {
     }
 
-    public record AttemptResult(Long attemptId, double averageScore, boolean passed, List<SubjectScore> subjects,
-                                List<QuestionResult> questions) {
+    public record AttemptResult(Long attemptId, double averageScore, boolean passed, int failScore,
+                                List<SubjectScore> subjects, List<QuestionResult> questions) {
     }
 
     @Transactional
@@ -174,6 +174,7 @@ public class AttemptService {
                 .map(q -> new GradedQuestion(q.getSubject().getNumber(), q.getSubject().getName(),
                         correctIds.contains(q.getId())))
                 .toList(), c.getFailScore(), c.getPassAverage());
-        return new AttemptResult(attempt.getId(), score.averageScore(), score.passed(), score.subjects(), results);
+        return new AttemptResult(attempt.getId(), score.averageScore(), score.passed(), c.getFailScore(),
+                score.subjects(), results);
     }
 }

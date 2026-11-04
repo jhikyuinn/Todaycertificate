@@ -91,6 +91,7 @@ export type AttemptResult = {
   attemptId: number;
   averageScore: number;
   passed: boolean;
+  failScore: number;
   subjects: SubjectScore[];
   questions: QuestionResult[];
 };

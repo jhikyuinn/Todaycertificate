@@ -188,7 +188,7 @@ export function StudySession({
             </View>
             <NumberGrid cells={cells} current={index} onJump={move} />
             <View style={s.keys}>
-              <Muted>⌨ 1~4 보기 선택</Muted>
+              {q?.type !== 'SHORT_ANSWER' && <Muted>⌨ 1~4 보기 선택</Muted>}
               <Muted>⌨ ← → 이전·다음, Enter 다음</Muted>
             </View>
           </Card>

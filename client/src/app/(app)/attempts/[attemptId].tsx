@@ -10,8 +10,6 @@ import { formatAccepted } from '@/lib/format';
 import { useApi, useIsWide } from '@/lib/hooks';
 import { AttemptResult, QuestionResult } from '@/lib/types';
 
-const FAIL_SCORE = 40; // 막대 그래프의 과락선 표시용. 판정 자체는 서버가 한다
-
 /**
  * 시험 결과. 제출 응답을 넘겨받지 않고 GET /api/attempts/{id}로 불러온다 → 새로고침해도 유지된다.
  * 넓은 화면: 왼쪽 점수, 오른쪽 문제별 해설. 좁은 화면: 점수 → 문제 순서로 쌓는다.
@@ -60,12 +58,14 @@ export default function AttemptResultScreen() {
                 <View
                   style={[s.barFill, { width: `${sub.score}%`, backgroundColor: sub.failed ? colors.wrong : colors.mint }]}
                 />
-                <View style={[s.failLine, { left: `${FAIL_SCORE}%` }]} />
+                {r.failScore > 0 && <View style={[s.failLine, { left: `${r.failScore}%` }]} />}
               </View>
             </View>
           ))}
         </View>
-        <Muted style={{ marginTop: 12 }}>세로선은 과락 기준(40점)이에요</Muted>
+        <Muted style={{ marginTop: 12 }}>
+          {r.failScore > 0 ? `세로선은 과락 기준(${r.failScore}점)이에요` : '이 시험은 과락이 없어요'}
+        </Muted>
       </Card>
 
       <View style={{ flexDirection: 'row', gap: 10 }}>

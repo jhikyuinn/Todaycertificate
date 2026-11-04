@@ -118,7 +118,7 @@
 
 ```json
 // AttemptResult
-{ "attemptId": 3, "averageScore": 78.3, "passed": false,
+{ "attemptId": 3, "averageScore": 78.3, "passed": false, "failScore": 40,
   "subjects": [{ "number": 1, "name": "소프트웨어 설계", "score": 100, "failed": false }],
   "questions": [{ "questionId": 10, "number": 1, "type": "MULTIPLE_CHOICE", "selectedNo": null, "answerText": null,
                   "answerNo": 2, "correctAnswerText": null, "correct": false, "explanation": "...", "stats": null },
