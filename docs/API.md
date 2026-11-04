@@ -112,6 +112,7 @@
 | `POST /api/exams/{examId}/attempts` | 시험 시작 | 없음 | 201 `{attemptId, startedAt, timeLimitMinutes, questions: [QuestionView]}` | 404 |
 | `POST /api/attempts/{id}/submit` | 시험 제출과 채점 | `{answers: [{questionId, selectedNo 또는 answerText}]}` (안 푼 문제는 빼고 보냄) | 아래 `AttemptResult` | 400, 403, 404, 409 `ALREADY_SUBMITTED` |
 | `GET /api/attempts/{id}` | 제출한 시험 결과 다시 보기 | 없음 | `AttemptResult` (제출 응답과 같은 모양) | 403, 404 (없거나 아직 제출 안 함) |
+| `GET /api/me/attempts?certificateId={id}` | 내 시험 점수 이력 (#32) | `certificateId` 필수 | `[{attemptId, examYear, examRound, submittedAt, averageScore, passed}]` (제출 오래된 순) | 404 (자격증 없음) |
 
 ```json
 // AttemptResult
@@ -132,6 +133,11 @@
   - 문제 유형에 맞는 쪽 하나만 보내야 한다. 객관식에 `answerText`, 주관식에 `selectedNo`, 또는 둘 다 없으면 400 `VALIDATION_FAILED`(`field`는 `selectedNo` 또는 `answerText`)이고 기록을 남기지 않는다. 시험 제출이면 응시도 열린 채로 둔다.
   - `correctRate`는 저장된 정답 여부가 아니라, 같은 답끼리 묶은 뒤 현재 정답으로 다시 채점해서 낸다.
 
+- **점수 이력 (#32):**
+  - 내가 제출한 시험만 나온다. 시작만 하고 제출하지 않은 응시와 다른 회원의 응시는 빠진다.
+  - 점수는 제출할 때 `exam_attempt`에 저장한 값이다. 다시 채점하지 않는다.
+  - 회차(`examYear`, `examRound`)는 exam을 fetch join으로 함께 읽어서 쿼리 한 번으로 가져온다.
+
 - **관련:**
   - 테이블: `solve_record`(모드 STUDY / EXAM), `exam_attempt`.
   - 화면: #11 공부 모드, #14 시험 모드(타이머, 자동 제출) + 결과.
@@ -148,8 +154,7 @@
 - **개선·확장 후보:**
   - 제한시간을 서버가 강제하지 않는다. 클라이언트 타이머의 자동 제출에 맡긴다. 필요하면 제출할 때 `startedAt + 제한시간`과 비교한다.
   - 제출하지 않고 떠난 응시가 계속 남는다. 정리 작업이나 "이어서 풀기"가 없다.
-  - 운영자가 정답을 고쳐서 다시 올리면, 결과 다시 보기의 점수가 제출 당시 점수와 달라질 수 있다. `exam_attempt`에 저장된 점수와 다시 계산한 점수가 다를 수 있다는 뜻이다.
-  - 내 시험 점수 이력 목록이 없다(아이디어 #32).
+  - 운영자가 정답을 고쳐서 다시 올리면, 결과 다시 보기의 점수가 제출 당시 점수와 달라질 수 있다. `exam_attempt`에 저장된 점수와 다시 계산한 점수가 다를 수 있다는 뜻이다. 점수 이력은 저장된 점수를 쓰므로, 이때 이력과 결과 화면의 점수가 다르게 보일 수 있다.
   - `stats`는 요청마다 집계한다. 기록이 아주 많아지면 집계 테이블이나 캐시가 필요하다.
 
 ## 5. 별표 · 오답노트 (#15)

@@ -4,6 +4,7 @@ import com.todaycertificate.attempt.ScoreCalculator.ExamScore;
 import com.todaycertificate.attempt.ScoreCalculator.GradedQuestion;
 import com.todaycertificate.attempt.ScoreCalculator.SubjectScore;
 import com.todaycertificate.certificate.Certificate;
+import com.todaycertificate.certificate.CertificateRepository;
 import com.todaycertificate.common.ApiException;
 import com.todaycertificate.common.ErrorCode;
 import com.todaycertificate.exam.Exam;
@@ -38,10 +39,11 @@ public class AttemptService {
     private final SolveRecordRepository records;
     private final QuestionViewAssembler assembler;
     private final QuestionStatsService stats;
+    private final CertificateRepository certificates;
 
     public AttemptService(ExamAttemptRepository attempts, ExamRepository exams, QuestionRepository questions,
                           MemberRepository members, SolveRecordRepository records, QuestionViewAssembler assembler,
-                          QuestionStatsService stats) {
+                          QuestionStatsService stats, CertificateRepository certificates) {
         this.attempts = attempts;
         this.exams = exams;
         this.questions = questions;
@@ -49,6 +51,7 @@ public class AttemptService {
         this.records = records;
         this.assembler = assembler;
         this.stats = stats;
+        this.certificates = certificates;
     }
 
     /** 객관식은 selectedNo, 주관식은 answerText 하나만 채운다. */
@@ -128,6 +131,22 @@ public class AttemptService {
                 .map(r -> new Answer(r.getQuestion().getId(), r.getSelectedNo(), r.getAnswerText()))
                 .collect(Collectors.toMap(Answer::questionId, a -> a));
         return grade(attempt, questions.findWithSubjectByExamId(attempt.getExam().getId()), selected);
+    }
+
+    public record HistoryItem(Long attemptId, int examYear, int examRound, Instant submittedAt, double averageScore,
+                              boolean passed) {
+    }
+
+    /** 점수 이력. 제출 때 저장한 점수를 그대로 쓴다 (다시 채점하지 않음). */
+    @Transactional(readOnly = true)
+    public List<HistoryItem> history(Long memberId, Long certificateId) {
+        if (!certificates.existsById(certificateId)) {
+            throw new ApiException(ErrorCode.NOT_FOUND);
+        }
+        return attempts.findSubmittedHistory(memberId, certificateId).stream()
+                .map(a -> new HistoryItem(a.getId(), a.getExam().getYear(), a.getExam().getRound(), a.getSubmittedAt(),
+                        a.getAverageScore(), a.getPassed()))
+                .toList();
     }
 
     private ExamAttempt findOwned(Long memberId, Long attemptId) {
