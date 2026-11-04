@@ -1,10 +1,11 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { formatAccepted } from '@/lib/format';
 import { useIsWide } from '@/lib/hooks';
 import { QuestionView, Stats } from '@/lib/types';
 
 import { RichText } from './RichText';
-import { Badge, colors } from './ui';
+import { Badge, colors, Field } from './ui';
 
 type Props = {
   question: QuestionView;
@@ -14,6 +15,12 @@ type Props = {
   onToggleBookmark?: () => void;
   stats?: Stats | null;
   label?: string; // "12 / 100" 같은 위치 표시
+  // 주관식 전용
+  answerText?: string;
+  onChangeText?: (v: string) => void; // 없으면 입력 불가
+  onSubmitAnswer?: () => void; // 입력칸에서 Enter
+  revealedAnswerText?: string | null; // 정답 공개 후: 허용 답 원문 ('A|B')
+  correct?: boolean; // 정답 공개 후 내 답 색 (채점은 서버가 한다)
 };
 
 const CIRCLED = ['①', '②', '③', '④'];
@@ -22,9 +29,22 @@ const CIRCLED = ['①', '②', '③', '④'];
  * 문제 한 개. 공부 모드, 시험 모드, 오답노트, 오늘의 문제가 함께 쓴다.
  * 넓은 화면에서는 보기 옆에 키보드 숫자를 표시한다 (1~4로 선택).
  */
-export function QuestionCard({ question, selectedNo, onSelect, revealedAnswerNo, onToggleBookmark, stats, label }: Props) {
+export function QuestionCard({
+  question,
+  selectedNo,
+  onSelect,
+  revealedAnswerNo,
+  onToggleBookmark,
+  stats,
+  label,
+  answerText,
+  onChangeText,
+  onSubmitAnswer,
+  revealedAnswerText,
+  correct,
+}: Props) {
   const wide = useIsWide();
-  const revealed = revealedAnswerNo != null;
+  const revealed = revealedAnswerNo != null || revealedAnswerText != null;
 
   return (
     <View style={{ gap: 16 }}>
@@ -48,6 +68,28 @@ export function QuestionCard({ question, selectedNo, onSelect, revealedAnswerNo,
           <RichText text={question.content} style={{ fontSize: wide ? 17 : 16 }} />
         </View>
       </View>
+
+      {question.type === 'SHORT_ANSWER' &&
+        (revealed ? (
+          <View style={{ gap: 8 }}>
+            <View style={[s.myAnswer, correct ? s.myAnswerCorrect : s.myAnswerWrong]}>
+              <Text style={s.sub}>내 답</Text>
+              <Text style={[s.myAnswerText, { color: correct ? colors.correct : colors.wrong }]}>{answerText || '(빈 답)'}</Text>
+            </View>
+            <Text style={s.correctAnswer}>정답: {formatAccepted(revealedAnswerText ?? '')}</Text>
+          </View>
+        ) : (
+          <Field
+            label="답"
+            value={answerText ?? ''}
+            onChangeText={onChangeText}
+            onSubmitEditing={onSubmitAnswer}
+            editable={!!onChangeText}
+            placeholder="답을 입력하세요"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+        ))}
 
       <View style={{ gap: wide ? 8 : 10 }}>
         {question.choices.map((choice, i) => {
@@ -118,4 +160,10 @@ const s = StyleSheet.create({
     paddingVertical: 1,
   },
   stats: { color: colors.sub, fontSize: 14 },
+  sub: { color: colors.sub, fontSize: 13 },
+  myAnswer: { gap: 4, padding: 14, borderWidth: 1.5, borderRadius: 16 },
+  myAnswerCorrect: { borderColor: colors.correct, backgroundColor: colors.correctSoft },
+  myAnswerWrong: { borderColor: colors.wrong, backgroundColor: colors.wrongSoft },
+  myAnswerText: { fontSize: 17, fontWeight: '700' },
+  correctAnswer: { fontSize: 16, fontWeight: '700', color: colors.correct },
 });

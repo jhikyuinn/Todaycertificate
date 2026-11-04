@@ -16,3 +16,8 @@ export function formatClock(totalSeconds: number) {
   const s = Math.max(0, Math.floor(totalSeconds));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
+
+/** 주관식 허용 답 'DDL|데이터 정의어' → 'DDL / 데이터 정의어' */
+export function formatAccepted(accepted: string) {
+  return accepted.split('|').join(' / ');
+}

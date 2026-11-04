@@ -3,7 +3,8 @@
 
 INSERT INTO certificate (name, description, time_limit_minutes, fail_score, pass_average) VALUES
     ('정보처리기사', '소프트웨어 설계부터 정보시스템 구축 관리까지 개발 전반을 다루는 국가기술자격', 150, 40, 60),
-    ('SQLD', '데이터 모델링과 SQL 활용 능력을 검증하는 국가공인 자격', 90, 40, 60)
+    ('SQLD', '데이터 모델링과 SQL 활용 능력을 검증하는 국가공인 자격', 90, 40, 60),
+    ('정보처리기사 실기', '정보처리기사 실기 시험. 단답형으로 답을 직접 써서 푼다', 150, 0, 60)
 ON CONFLICT (name) DO NOTHING;
 
 INSERT INTO subject (certificate_id, number, name)
@@ -16,7 +17,8 @@ JOIN (VALUES
     ('정보처리기사', 4, '프로그래밍 언어 활용'),
     ('정보처리기사', 5, '정보시스템 구축 관리'),
     ('SQLD', 1, '데이터 모델링의 이해'),
-    ('SQLD', 2, 'SQL 기본 및 활용')
+    ('SQLD', 2, 'SQL 기본 및 활용'),
+    ('정보처리기사 실기', 1, '실기')
 ) AS s(cert_name, number, name) ON c.name = s.cert_name
 ON CONFLICT (certificate_id, number) DO NOTHING;
 
@@ -86,4 +88,28 @@ FROM (VALUES
 JOIN certificate c ON c.name = q.cert_name
 JOIN exam e ON e.certificate_id = c.id AND e.year = 2025 AND e.round = 1
 JOIN subject s ON s.certificate_id = c.id AND s.number = q.subject_no
+ON CONFLICT (exam_id, number) DO NOTHING;
+
+-- 실기 단답형 예시 (직접 만든 문제). 허용 답은 |로 구분, exact_match면 대소문자까지 그대로 비교한다.
+INSERT INTO question (exam_id, subject_id, number, type, content, answer_text, exact_match, explanation)
+SELECT e.id, s.id, q.number, 'SHORT_ANSWER', q.content, q.answer_text, q.exact_match, q.explanation
+FROM (VALUES
+    (1, '데이터베이스의 구조(테이블, 인덱스 등)를 정의하는 SQL 명령어 분류를 영문 약자로 쓰시오.',
+        'DDL', false, 'DDL(Data Definition Language)은 CREATE, ALTER, DROP처럼 구조를 정의한다.'),
+    (2, 'HTTP에 TLS 암호화를 더한 프로토콜의 이름을 쓰시오.',
+        'HTTPS', false, 'HTTPS는 HTTP 통신을 TLS로 암호화한다. 기본 포트는 443이다.'),
+    (3, '테이블의 구조는 남기고 모든 행을 한 번에 삭제하는 SQL 명령어를 쓰시오.',
+        'TRUNCATE', false, 'TRUNCATE는 DDL로 분류되며 DELETE와 달리 행 단위로 기록하지 않아 빠르다.'),
+    (4, E'다음 Java 코드의 출력 결과를 쓰시오.
+```
+String s = "ab";
+System.out.println(s.toUpperCase().charAt(0) + s.substring(1) + "C");
+```',
+        'AbC', true, 'toUpperCase().charAt(0)은 ''A'', substring(1)은 "b"이므로 "AbC"가 출력된다. 대소문자까지 정확히 써야 한다.'),
+    (5, '관계형 데이터베이스에서 릴레이션의 한 행을 가리키는 용어를 쓰시오.',
+        '튜플|tuple', false, '행은 튜플(tuple), 열은 속성(attribute)이라 부른다.')
+) AS q(number, content, answer_text, exact_match, explanation)
+JOIN certificate c ON c.name = '정보처리기사 실기'
+JOIN exam e ON e.certificate_id = c.id AND e.year = 2025 AND e.round = 1
+JOIN subject s ON s.certificate_id = c.id AND s.number = 1
 ON CONFLICT (exam_id, number) DO NOTHING;

@@ -40,10 +40,13 @@ export type CertificateDetail = {
   exams: ExamSummary[];
 };
 
-/** 풀기 전 문제. 정답·해설은 없다. */
+export type QuestionType = 'MULTIPLE_CHOICE' | 'SHORT_ANSWER';
+
+/** 풀기 전 문제. 정답·해설은 없다. 주관식은 choices가 빈 배열이다. */
 export type QuestionView = {
   id: number;
   number: number;
+  type: QuestionType;
   subjectNumber: number;
   subjectName: string;
   content: string;
@@ -53,7 +56,14 @@ export type QuestionView = {
 
 export type Stats = { solvedCount: number; correctRate: number; mostChosenWrongNo: number | null };
 
-export type SolveResult = { correct: boolean; answerNo: number; explanation: string | null; stats: Stats | null };
+/** 객관식은 answerNo, 주관식은 correctAnswerText(허용 답을 |로 이은 원문)만 채워진다. */
+export type SolveResult = {
+  correct: boolean;
+  answerNo: number | null;
+  correctAnswerText: string | null;
+  explanation: string | null;
+  stats: Stats | null;
+};
 
 export type StartResult = {
   attemptId: number;
@@ -67,8 +77,11 @@ export type SubjectScore = { number: number; name: string; score: number; failed
 export type QuestionResult = {
   questionId: number;
   number: number;
+  type: QuestionType;
   selectedNo: number | null;
-  answerNo: number;
+  answerText: string | null; // 주관식 내 답
+  answerNo: number | null;
+  correctAnswerText: string | null;
   correct: boolean;
   explanation: string | null;
   stats: Stats | null;

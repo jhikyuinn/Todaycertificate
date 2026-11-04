@@ -25,7 +25,7 @@ export default function ExamScreen() {
   const [attempt, setAttempt] = useState<StartResult | null>(null);
   const [deadline, setDeadline] = useState(0);
   const [remaining, setRemaining] = useState(0);
-  const [answers, setAnswers] = useState<Record<number, number>>({});
+  const [answers, setAnswers] = useState<Record<number, number | string>>({}); // 객관식은 번호, 주관식은 입력한 글자
   const [index, setIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -55,7 +55,9 @@ export default function ExamScreen() {
     setSubmitting(true);
     try {
       await api.post(`/api/attempts/${attempt.attemptId}/submit`, {
-        answers: Object.entries(answers).map(([questionId, selectedNo]) => ({ questionId: Number(questionId), selectedNo })),
+        answers: Object.entries(answers)
+          .filter(([, v]) => isAnswered(v)) // 공백만 쓴 주관식은 안 푼 문제로 보낸다
+          .map(([id, v]) => ({ questionId: Number(id), ...(typeof v === 'number' ? { selectedNo: v } : { answerText: v }) })),
       });
       router.replace(`/attempts/${attempt.attemptId}`);
     } catch (e) {
@@ -83,7 +85,8 @@ export default function ExamScreen() {
   const questions = attempt?.questions ?? [];
   const q = questions[index];
   const move = (to: number) => setIndex(Math.min(Math.max(0, to), questions.length - 1));
-  const select = (no: number) => q && setAnswers((prev) => ({ ...prev, [q.id]: no }));
+  const select = (no: number) => q?.type === 'MULTIPLE_CHOICE' && setAnswers((prev) => ({ ...prev, [q.id]: no }));
+  const type = (text: string) => q && setAnswers((prev) => ({ ...prev, [q.id]: text }));
 
   useKeyboard((key) => {
     if (!q || confirmOpen) return;
@@ -95,10 +98,10 @@ export default function ExamScreen() {
   if (error && !attempt) return <Screen><ErrorBox message={error} /></Screen>;
   if (!attempt || !q) return <Loading />;
 
-  const answeredCount = Object.keys(answers).length;
+  const answeredCount = Object.values(answers).filter(isAnswered).length;
   const unanswered = questions.length - answeredCount;
   const urgent = remaining < 5 * 60; // 5분 남으면 빨간색
-  const cells = questions.map((x) => ({ number: x.number, state: answers[x.id] ? ('answered' as const) : ('none' as const) }));
+  const cells = questions.map((x) => ({ number: x.number, state: isAnswered(answers[x.id]) ? ('answered' as const) : ('none' as const) }));
   const isLast = index === questions.length - 1;
 
   const timer = (
@@ -109,7 +112,15 @@ export default function ExamScreen() {
   );
 
   const card = (
-    <QuestionCard question={q} selectedNo={answers[q.id] ?? null} onSelect={select} label={`${index + 1} / ${questions.length}`} />
+    <QuestionCard
+      question={q}
+      selectedNo={typeof answers[q.id] === 'number' ? (answers[q.id] as number) : null}
+      onSelect={select}
+      answerText={typeof answers[q.id] === 'string' ? (answers[q.id] as string) : ''}
+      onChangeText={type}
+      onSubmitAnswer={() => move(index + 1)}
+      label={`${index + 1} / ${questions.length}`}
+    />
   );
 
   const confirm = (
@@ -209,6 +220,8 @@ export default function ExamScreen() {
     </Screen>
   );
 }
+
+const isAnswered = (v: number | string | undefined) => (typeof v === 'string' ? v.trim() !== '' : v != null);
 
 const s = StyleSheet.create({
   title: { fontSize: 26, fontWeight: '800', color: colors.text },
