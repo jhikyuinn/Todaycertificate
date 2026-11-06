@@ -103,8 +103,7 @@
 - ✅ Expo 화면 새로 작성 (위 기능 목록의 ✅ 전부)
 - ✅ 채점·과락·CSV/PDF 검증 테스트, GitHub Actions CI
 - ✅ 배포: 서버(Render), DB(Neon), 웹(Vercel), 데모 계정
-- 🚧 운영자 화면 데모 영상
-
+  
 ## 로컬 실행
 
 **필요한 것:** Java 25, Docker, Node.js 24
