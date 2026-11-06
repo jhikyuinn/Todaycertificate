@@ -2,6 +2,11 @@
 
 서버(Spring Boot)에 **실제로 구현되어 있고 테스트가 있는** API만 적는다. (2026-11-03 기준, 테스트 96개 통과)
 
+## 주소
+
+- 로컬: `http://localhost:8080`
+- 배포: `https://todaycertificate.onrender.com` (웹 화면은 같은 API를 `https://todaycertificate-client.vercel.app/api/proxy`로 거쳐 호출)
+
 ## 공통 규칙
 
 - **인증:** `/api/auth/**`만 로그인 없이 호출할 수 있다. 나머지는 `Authorization: Bearer <accessToken>` 헤더가 필요하다.
