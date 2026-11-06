@@ -19,13 +19,13 @@ class SampleDataTest {
 
     @Test
     void sampleData_isLoaded() {
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM question", Integer.class)).isEqualTo(19);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM question", Integer.class)).isEqualTo(50);
     }
 
     @Test
     void codeQuestion_keepsNewlinesAndIndentation() {
         String content = jdbc.queryForObject(
-                "SELECT content FROM question WHERE content LIKE '%GROUP BY%'", String.class);
+                "SELECT content FROM question WHERE content LIKE '%GROUP BY DEPT_NO%'", String.class);
         assertThat(content).contains("```\nSELECT DEPT_NO, COUNT(*)\nFROM EMP\nGROUP BY DEPT_NO;\n```");
 
         String java = jdbc.queryForObject(
