@@ -8,9 +8,20 @@
 **오늘의 자격증**은 시험일(D-day), 과목별 과락 위험, 내가 틀린 문제를 바탕으로
 **오늘 풀 문제**를 골라 줍니다. 앱을 열면 바로 오늘의 공부를 시작할 수 있습니다.
 
-> 🚧 **현재 개발 중입니다.** 2022년에 만든 Expo + Express + MySQL 앱을
-> **Spring Boot + PostgreSQL** 기반으로 다시 만들고 있습니다.
-> 기능은 로컬에서 동작하며, 배포는 아직 하지 않았습니다. (✅ 완료 · 🚧 진행 예정)
+## 🔗 바로 써 보기
+
+| | 주소 |
+|---|---|
+| 웹 | **https://todaycertificate-client.vercel.app** |
+| API 서버 | https://todaycertificate.onrender.com |
+| 데모 계정 | 아이디 `Demouser` / 비밀번호 `Demouser123` (일반 회원) |
+
+> - 서버가 Render 무료 플랜이라 한동안 요청이 없으면 잠듭니다. **첫 요청은 깨어나는 데 시간이 걸릴 수 있습니다.**
+> - 데모 계정은 모두가 함께 쓰므로 풀이 기록과 오답노트가 섞여 있을 수 있습니다. 직접 가입해서 써도 됩니다.
+> - 자격증과 문제는 개발용 샘플 데이터이며 실제 기출문제가 아닙니다.
+> - 운영자 화면은 데이터 보호를 위해 계정을 공개하지 않습니다. [로컬 실행](#3-운영자-계정-선택)에서 직접 볼 수 있습니다.
+
+2022년에 만든 Expo + Express + MySQL 앱을 **Spring Boot + PostgreSQL**로 다시 만들었습니다. (✅ 완료 · 🚧 진행 예정)
 
 ---
 
@@ -49,7 +60,6 @@
 | 자격증 관리 | 설명, 과목, 시험 일정, 제한시간·과락·합격 기준 설정 | ✅ |
 | 기출 CSV 업로드 | 회차별 문제를 CSV로 한 번에 등록. 오류가 있으면 줄별로 알려주고 전체를 저장하지 않음 | ✅ |
 | 기출 PDF 가져오기 | 필기(객관식)·실기(주관식) PDF를 읽어 미리보기 → 수정 → 저장. 2단 편집 PDF, 코드 들여쓰기 유지 | ✅ |
-| 배포 + 데모 계정 | 서버(Render), DB(Neon), 웹(Vercel) | 🚧 |
 
 ## 기술 스택
 
@@ -62,6 +72,7 @@
 | DB 마이그레이션 | Flyway | 스키마 변경을 SQL 파일로 기록해 로컬·테스트·배포 DB를 똑같이 맞춤 |
 | 테스트 | JUnit, Testcontainers | H2 대신 실제 PostgreSQL로 테스트해 운영 DB와 차이로 생기는 버그를 막음 |
 | CI | GitHub Actions | PR마다 서버 테스트와 화면 타입 검사를 자동 실행 |
+| 배포 | Render (Docker), Neon, Vercel | 서버·DB·웹을 모두 무료 플랜으로 운영. 자세한 내용은 [배포](#배포) |
 
 ## 지금까지 된 것
 
@@ -70,7 +81,8 @@
 - ✅ 기존 설계의 버그 수정: 해설 테이블이 문제와 연결되지 않아 모든 해설이 모든 문제 아래 표시되던 문제
 - ✅ Expo 화면 새로 작성 (위 기능 목록의 ✅ 전부)
 - ✅ 채점·과락·CSV/PDF 검증 테스트, GitHub Actions CI
-- 🚧 배포, 운영자 화면 데모 영상
+- ✅ 배포: 서버(Render), DB(Neon), 웹(Vercel), 데모 계정
+- 🚧 운영자 화면 데모 영상
 
 ## 로컬 실행
 
@@ -112,6 +124,50 @@ cd client && npx tsc --noEmit       # 타입 검사
 ```
 
 > 샘플 데이터(자격증·문제·일정)는 개발용으로 만든 것이며 실제 기출문제가 아닙니다.
+
+## 배포
+
+```
+브라우저
+   │  https://todaycertificate-client.vercel.app
+   ▼
+Vercel ── 화면(정적 파일) 응답: npx expo export -p web → dist/
+   │
+   │  /api/proxy/* 요청만 서버로 전달 (client/vercel.json rewrites)
+   ▼
+Render ── Spring Boot (Docker 컨테이너, server/Dockerfile)
+   │      시작할 때 Flyway가 스키마와 샘플 데이터를 적용
+   ▼
+Neon ──── PostgreSQL
+```
+
+| 구성 | 서비스 | 설정 |
+|---|---|---|
+| 웹 | Vercel | Root `client`, Build `npx expo export -p web`, Output `dist`, 환경변수 `EXPO_PUBLIC_API_URL=/api/proxy` |
+| 서버 | Render Web Service | Runtime **Docker**, Root `server`, 환경변수 `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET` |
+| DB | Neon | PostgreSQL. 접속 정보는 Render 환경변수에만 둠 |
+
+### 이렇게 한 이유
+
+- **Render에 Docker로 배포:** Render에는 Java 런타임이 없어서 Dockerfile로 빌드합니다.
+  **멀티 스테이지 빌드**를 써서 JDK와 Gradle은 빌드 단계에만 쓰고, 실행 이미지에는 JRE와 jar만 남깁니다.
+- **포트와 메모리:** Render가 알려주는 `PORT` 환경변수를 `-Dserver.port`로 넘깁니다.
+  무료 인스턴스 메모리가 작아서 `-XX:MaxRAMPercentage=75`로 JVM 힙이 컨테이너 메모리를 넘지 않게 합니다.
+- **CORS 대신 Vercel 프록시:** 화면은 `/api/proxy/...`처럼 자기 도메인으로 요청하고, Vercel이 Render로 전달합니다.
+  브라우저 입장에서는 같은 도메인이라 CORS 설정이 필요 없고, 서버 주소는 `vercel.json` 한 곳에만 있습니다.
+  대신 요청이 Vercel을 한 번 더 거칩니다.
+- **SPA 경로 처리:** Expo 웹은 `index.html` 하나로 동작하는 SPA라서, `/login`처럼 하위 경로에서 새로고침해도
+  `index.html`을 주도록 rewrites를 두었습니다.
+- **비밀값 관리:** `.env`는 `.dockerignore`와 `.gitignore`로 막고, 운영 값은 Render 환경변수에만 둡니다.
+  운영용 `JWT_SECRET`은 로컬과 다른 값을 씁니다.
+
+### 배포하면서 겪은 문제
+
+| 증상 | 원인 | 해결 |
+|---|---|---|
+| Render에서 서버 시작 실패 (`'url' must start with "jdbc"`) | Neon이 주는 `postgresql://user:pw@host/db` 주소를 그대로 넣음. 에러가 Bean 생성 실패로 연달아 나와 순환 참조처럼 보였음 | 로그의 마지막 원인을 따라가 확인. `jdbc:postgresql://host/db?sslmode=require`로 바꾸고 사용자·비밀번호는 따로 분리 |
+| 화면이 서버 주소를 읽지 못함 (코드의 기본값 `localhost:8080`으로 요청하게 됨) | Next.js 규칙인 `NEXT_PUBLIC_` 이름으로 환경변수를 넣음 | Expo 규칙인 `EXPO_PUBLIC_API_URL`로 바꾸고 다시 빌드 (빌드할 때 코드에 박히는 값) |
+| `/login`, `/api/proxy/*`가 404 | Vercel의 "Clone"으로 만든 복사본 레포에 연결되어, 원래 레포에 push한 `vercel.json`이 반영되지 않음 | 원래 레포를 Import해서 직접 연결 |
 
 ## 프로젝트 구조
 
