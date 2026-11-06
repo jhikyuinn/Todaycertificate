@@ -23,6 +23,27 @@
 
 2022년에 만든 Expo + Express + MySQL 앱을 **Spring Boot + PostgreSQL**로 다시 만들었습니다. (✅ 완료 · 🚧 진행 예정)
 
+## 📱 화면
+
+> 배포된 사이트를 데모 계정으로 캡처했습니다.
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/images/home.png" width="220" alt="홈 화면: D-day, 오늘의 문제, 과락 위험 과목"><br><b>홈</b><br>D-day · 오늘의 문제 20개 · 과락 위험 과목</td>
+    <td align="center"><img src="docs/images/study.png" width="220" alt="공부 모드: 답을 고르면 바로 정답과 해설"><br><b>공부 모드</b><br>고르면 바로 정답과 해설</td>
+    <td align="center"><img src="docs/images/exam-result.png" width="220" alt="시험 결과: 평균 70점이지만 과락으로 불합격"><br><b>시험 결과</b><br>평균 70점이어도 <b>과락이면 불합격</b></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/images/score-history.png" width="220" alt="점수 이력 그래프와 합격선"><br><b>점수 이력</b><br>회차별 점수와 합격선</td>
+    <td align="center"><img src="docs/images/wrong-notes.png" width="220" alt="오답노트: 틀린 문제가 자동으로 모임"><br><b>오답노트</b><br>틀린 문제가 자동으로 모이고, 맞히면 빠짐</td>
+    <td align="center"><img src="docs/images/practical-code.png" width="220" alt="실기 단답형 코드 문제"><br><b>실기 (단답형)</b><br>코드 줄바꿈·들여쓰기 그대로 표시</td>
+  </tr>
+</table>
+
+**운영자: 기출 PDF 가져오기** (PDF를 읽어 문제·보기·정답을 표로 보여주고, 고친 뒤 저장)
+
+<img src="docs/images/admin-pdf-preview.png" width="720" alt="운영자 화면: PDF에서 읽은 문제를 미리보기 표로 확인하고 수정">
+
 ---
 
 ## 이렇게 공부합니다
