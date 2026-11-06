@@ -113,3 +113,144 @@ JOIN certificate c ON c.name = '정보처리기사 실기'
 JOIN exam e ON e.certificate_id = c.id AND e.year = 2025 AND e.round = 1
 JOIN subject s ON s.certificate_id = c.id AND s.number = 1
 ON CONFLICT (exam_id, number) DO NOTHING;
+
+-- ===== 데모용 추가 데이터 (2026-11-06) =====
+-- 점수 이력 그래프, 과목별 리포트, 오늘의 문제가 의미 있게 보이도록 회차와 문제를 늘린다.
+-- 기존 블록을 바꾸지 않고 추가만 한다 (운영 DB에 이미 들어간 데이터는 그대로 둔다).
+
+INSERT INTO exam_schedule (certificate_id, year, round, registration_start, registration_end, exam_date)
+SELECT c.id, s.year, s.round, s.reg_start::date, s.reg_end::date, s.exam_date::date
+FROM certificate c
+JOIN (VALUES
+    ('정보처리기사 실기', 2026, 4, '2026-11-23', '2026-11-26', '2026-12-19'),
+    ('정보처리기사', 2027, 1, '2027-01-26', '2027-01-29', '2027-02-27'),
+    ('SQLD', 2027, 1, '2027-02-02', '2027-02-06', '2027-03-08'),
+    ('정보처리기사 실기', 2027, 1, '2027-03-23', '2027-03-26', '2027-04-24')
+) AS s(cert_name, year, round, reg_start, reg_end, exam_date) ON c.name = s.cert_name
+WHERE NOT EXISTS (
+    SELECT 1 FROM exam_schedule e
+    WHERE e.certificate_id = c.id AND e.year = s.year AND e.round = s.round
+);
+
+INSERT INTO exam (certificate_id, year, round)
+SELECT c.id, x.year, x.round
+FROM certificate c
+JOIN (VALUES
+    ('정보처리기사', 2025, 2),
+    ('정보처리기사', 2025, 3),
+    ('SQLD', 2025, 2),
+    ('정보처리기사 실기', 2025, 2)
+) AS x(cert_name, year, round) ON c.name = x.cert_name
+ON CONFLICT (certificate_id, year, round) DO NOTHING;
+
+INSERT INTO question (exam_id, subject_id, number, content, choice1, choice2, choice3, choice4, answer_no, explanation)
+SELECT e.id, s.id, q.number, q.content, q.c1, q.c2, q.c3, q.c4, q.answer_no, q.explanation
+FROM (VALUES
+    -- 정보처리기사 2025년 2회
+    ('정보처리기사', 2, 1, 1, '구조적 분석에서 사용하는 요구사항 분석 도구가 아닌 것은?',
+        '자료 흐름도(DFD)', '자료 사전(DD)', '소단위 명세서', '컴파일러', 4,
+        '구조적 분석 도구는 DFD, 자료 사전, 소단위 명세서, ERD 등이다. 컴파일러는 소스 코드를 번역하는 도구다.'),
+    ('정보처리기사', 2, 1, 2, 'GoF 디자인 패턴 중 생성 패턴에 해당하는 것은?',
+        '싱글톤(Singleton)', '어댑터(Adapter)', '옵저버(Observer)', '프록시(Proxy)', 1,
+        '싱글톤은 생성 패턴이다. 어댑터와 프록시는 구조 패턴, 옵저버는 행위 패턴이다.'),
+    ('정보처리기사', 2, 2, 3, '큐(Queue)에 대한 설명으로 옳은 것은?',
+        'LIFO 구조다', 'FIFO 구조다', '한쪽 끝에서만 삽입과 삭제가 일어난다', '우선순위가 높은 데이터가 항상 먼저 나간다', 2,
+        '큐는 먼저 들어온 데이터가 먼저 나가는 FIFO(First In First Out) 구조다.'),
+    ('정보처리기사', 2, 2, 4, '형상(버전) 관리 도구가 아닌 것은?',
+        'Git', 'SVN', 'CVS', 'JUnit', 4,
+        'JUnit은 Java 단위 테스트 프레임워크다.'),
+    ('정보처리기사', 2, 3, 5, 'SQL 명령어 중 DCL(데이터 제어어)에 해당하는 것은?',
+        'SELECT', 'GRANT', 'CREATE', 'UPDATE', 2,
+        'DCL은 GRANT, REVOKE처럼 권한을 다룬다. CREATE는 DDL, SELECT와 UPDATE는 DML이다.'),
+    ('정보처리기사', 2, 3, 6, '제2정규형(2NF)을 만족하기 위한 조건은?',
+        '모든 도메인이 원자값이다', '부분 함수 종속을 제거한다', '이행 함수 종속을 제거한다', '다치 종속을 제거한다', 2,
+        '1NF에서 부분 함수 종속을 제거하면 2NF, 이행 함수 종속까지 제거하면 3NF다.'),
+    ('정보처리기사', 2, 4, 7, E'다음 C 코드의 출력 결과는?\n```\nint a = 7, b = 3;\nprintf("%d", a / b + a % b);\n```',
+        '3', '2', '4', '1', 1,
+        '정수 나눗셈 7 / 3 = 2, 나머지 7 % 3 = 1이므로 2 + 1 = 3이다.'),
+    ('정보처리기사', 2, 4, 8, 'TCP의 특징이 아닌 것은?',
+        '연결 지향', '신뢰성 보장', '흐름 제어', '비연결형 전송', 4,
+        '비연결형 전송은 UDP의 특징이다. TCP는 연결을 맺고 순서와 도착을 보장한다.'),
+    ('정보처리기사', 2, 5, 9, '나선형(Spiral) 모델의 특징으로 옳은 것은?',
+        '위험 분석을 반복하며 점진적으로 개발한다', '모든 단계를 한 번씩만 순서대로 진행한다', '요구사항 정의 없이 바로 구현한다', '유지보수 단계가 없다', 1,
+        '나선형 모델은 계획, 위험 분석, 개발, 평가를 반복하며 위험을 줄인다.'),
+    ('정보처리기사', 2, 5, 10, '대칭키 암호화 알고리즘에 해당하는 것은?',
+        'RSA', 'AES', 'ECC', 'DSA', 2,
+        'AES는 암호화와 복호화에 같은 키를 쓰는 대칭키 방식이다. RSA, ECC, DSA는 공개키 방식이다.'),
+
+    -- 정보처리기사 2025년 3회
+    ('정보처리기사', 3, 1, 1, '모듈 결합도 중 가장 약해서 바람직한 것은?',
+        '내용 결합도', '공통 결합도', '제어 결합도', '자료 결합도', 4,
+        '결합도는 자료 < 스탬프 < 제어 < 외부 < 공통 < 내용 순으로 강해진다. 약할수록 좋다.'),
+    ('정보처리기사', 3, 1, 2, '모듈 응집도 중 가장 강해서 바람직한 것은?',
+        '우연적 응집도', '논리적 응집도', '기능적 응집도', '시간적 응집도', 3,
+        '기능적 응집도는 모듈 안의 모든 요소가 하나의 기능을 위해 존재한다. 응집도는 강할수록 좋다.'),
+    ('정보처리기사', 3, 2, 3, '이진 탐색(Binary Search)을 쓰기 위한 조건은?',
+        '데이터가 정렬되어 있어야 한다', '데이터가 해시 테이블에 있어야 한다', '데이터 개수가 홀수여야 한다', '연결 리스트로 구현해야 한다', 1,
+        '이진 탐색은 정렬된 데이터의 가운데 값과 비교해 탐색 범위를 절반씩 줄인다.'),
+    ('정보처리기사', 3, 2, 4, '하향식 통합 테스트에서 아직 만들지 않은 하위 모듈 대신 쓰는 것은?',
+        '스텁(Stub)', '드라이버(Driver)', '목업 화면', '디버거', 1,
+        '하향식은 하위 모듈을 스텁으로, 상향식은 상위 모듈을 드라이버로 대신한다.'),
+    ('정보처리기사', 3, 3, 5, '인덱스에 대한 설명으로 옳지 않은 것은?',
+        '조회 속도를 높일 수 있다', '추가 저장 공간이 필요하다', '인덱스가 많을수록 INSERT가 빨라진다', 'B-Tree 구조를 많이 사용한다', 3,
+        '데이터를 넣을 때 인덱스도 함께 갱신해야 하므로 인덱스가 많을수록 INSERT는 느려진다.'),
+    ('정보처리기사', 3, 3, 6, '일반 뷰(View)에 대한 설명으로 옳지 않은 것은?',
+        '논리적 데이터 독립성을 제공한다', '보안(접근 제한)에 활용할 수 있다', '복잡한 질의를 단순하게 만든다', '데이터를 별도의 물리적 공간에 따로 저장한다', 4,
+        '일반 뷰는 저장된 질의일 뿐, 데이터를 따로 저장하지 않는다.'),
+    ('정보처리기사', 3, 4, 7, E'다음 Python 코드의 출력 결과는?\n```\nnums = [1, 2, 3, 4]\nprint(sum(n * n for n in nums if n % 2 == 0))\n```',
+        '20', '30', '6', '10', 1,
+        '짝수 2와 4만 제곱해서 더하므로 4 + 16 = 20이다.'),
+    ('정보처리기사', 3, 4, 8, 'IPv4 주소의 길이는?',
+        '16비트', '32비트', '64비트', '128비트', 2,
+        'IPv4는 32비트, IPv6는 128비트다.'),
+    ('정보처리기사', 3, 5, 9, 'COCOMO 모델의 개발 유형이 아닌 것은?',
+        '조직형(Organic)', '반분리형(Semi-detached)', '내장형(Embedded)', '분산형(Distributed)', 4,
+        'COCOMO는 프로젝트를 조직형, 반분리형, 내장형으로 나눠 비용을 산정한다.'),
+    ('정보처리기사', 3, 5, 10, '파일을 암호화해 사용할 수 없게 만든 뒤 돈을 요구하는 악성코드는?',
+        '랜섬웨어', '웜', '스파이웨어', '애드웨어', 1,
+        '랜섬웨어는 파일을 인질로 잡고 복호화 대가를 요구한다.'),
+
+    -- SQLD 2025년 2회
+    ('SQLD', 2, 1, 1, '업무에 원래 존재하지 않지만 편의를 위해 인위적으로 만든 식별자는?',
+        '본질식별자', '인조식별자', '보조식별자', '외부식별자', 2,
+        '인조식별자는 일련번호처럼 시스템이 만들어 붙인 식별자다.'),
+    ('SQLD', 2, 1, 2, '반정규화에 대한 설명으로 옳은 것은?',
+        '성능 향상을 위해 의도적으로 중복을 허용한다', '데이터 중복을 완전히 없앤다', '항상 데이터 무결성을 높인다', '정규화보다 먼저 수행한다', 1,
+        '반정규화는 조회 성능을 위해 정규화된 모델에 중복을 다시 허용한다. 무결성이 깨질 위험이 있다.'),
+    ('SQLD', 2, 1, 3, '한 엔터티의 인스턴스가 다른 엔터티의 인스턴스 몇 개와 관계를 맺는지 나타내는 것은?',
+        '관계 차수(Cardinality)', '관계 선택사양(Optionality)', '속성(Attribute)', '도메인(Domain)', 1,
+        '관계 차수는 1:1, 1:N, M:N처럼 관계에 참여하는 인스턴스 수를 나타낸다.'),
+    ('SQLD', 2, 2, 4, E'T 테이블의 COL1 값이 1, NULL, 3, NULL일 때 결과는?\n```\nSELECT COUNT(COL1) FROM T;\n```',
+        '4', '2', '0', '3', 2,
+        'COUNT(컬럼)은 NULL을 세지 않는다. COUNT(*)라면 4가 나온다.'),
+    ('SQLD', 2, 2, 5, 'GROUP BY로 묶은 그룹에 조건을 걸 때 쓰는 절은?',
+        'WHERE', 'HAVING', 'ORDER BY', 'DISTINCT', 2,
+        'WHERE는 그룹으로 묶기 전 행에, HAVING은 묶은 뒤 그룹에 조건을 건다.'),
+    ('SQLD', 2, 2, 6, E'A 테이블의 ID가 1, 2, 3이고 B 테이블의 ID가 1, 1, 4일 때 결과 행 수는?\n```\nSELECT *\nFROM A LEFT OUTER JOIN B ON A.ID = B.ID;\n```',
+        '3', '4', '5', '2', 2,
+        'A의 1은 B의 두 행과 연결되고, 2와 3은 B가 NULL인 행으로 남는다. 2 + 1 + 1 = 4행이다.')
+) AS q(cert_name, exam_round, subject_no, number, content, c1, c2, c3, c4, answer_no, explanation)
+JOIN certificate c ON c.name = q.cert_name
+JOIN exam e ON e.certificate_id = c.id AND e.year = 2025 AND e.round = q.exam_round
+JOIN subject s ON s.certificate_id = c.id AND s.number = q.subject_no
+ON CONFLICT (exam_id, number) DO NOTHING;
+
+-- 실기 2025년 2회: C, Python, Java 코드 문제를 넣어 코드 표시(줄바꿈·들여쓰기)와 정확 일치 채점을 보여준다.
+INSERT INTO question (exam_id, subject_id, number, type, content, answer_text, exact_match, explanation)
+SELECT e.id, s.id, q.number, 'SHORT_ANSWER', q.content, q.answer_text, q.exact_match, q.explanation
+FROM (VALUES
+    (1, E'다음 C 코드의 출력 결과를 쓰시오.\n```\n#include <stdio.h>\nint main() {\n    int arr[] = {3, 1, 4, 1, 5};\n    int max = arr[0];\n    for (int i = 1; i < 5; i++) {\n        if (arr[i] > max) max = arr[i];\n    }\n    printf("%d", max);\n    return 0;\n}\n```',
+        '5', true, '배열을 한 번 돌며 더 큰 값을 max에 저장하므로 가장 큰 값 5가 출력된다.'),
+    (2, E'다음 Python 코드의 출력 결과를 쓰시오.\n```\ns = "hello"\nprint(s[::-1])\n```',
+        'olleh', true, '슬라이싱 [::-1]은 문자열을 뒤집는다.'),
+    (3, E'점수가 90 이상인 학생 수를 구하려고 한다. 빈칸에 들어갈 함수 이름을 쓰시오.\n```\nSELECT ____(*) FROM STUDENT WHERE SCORE >= 90;\n```',
+        'COUNT', false, 'COUNT(*)는 조건에 맞는 행의 개수를 센다.'),
+    (4, '한 객체의 상태가 바뀌면 그 객체에 의존하는 다른 객체들에게 자동으로 알리는 GoF 행위 패턴의 이름을 쓰시오.',
+        '옵저버|옵저버 패턴|Observer|Observer Pattern', false, '옵저버 패턴은 구독자 목록을 두고 상태가 바뀔 때 알림을 보낸다. 이벤트 리스너가 대표적인 예다.'),
+    (5, E'다음 Java 코드의 출력 결과를 쓰시오.\n```\nint x = 10;\nx += x++ + ++x;\nSystem.out.println(x);\n```',
+        '32', true, 'x += E는 원래 x 값 10을 먼저 읽어 둔다. x++는 10을 돌려주고 x를 11로, ++x는 x를 12로 만들고 12를 돌려준다. 10 + (10 + 12) = 32다.')
+) AS q(number, content, answer_text, exact_match, explanation)
+JOIN certificate c ON c.name = '정보처리기사 실기'
+JOIN exam e ON e.certificate_id = c.id AND e.year = 2025 AND e.round = 2
+JOIN subject s ON s.certificate_id = c.id AND s.number = 1
+ON CONFLICT (exam_id, number) DO NOTHING;
